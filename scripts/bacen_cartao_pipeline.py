@@ -297,7 +297,7 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     # diferente, o pandas geralmente detecta sozinho com engine='python'.
     try:
         df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
-        print(df.head(3))
+        print(df.head(30))  # inspeciona as primeiras linhas pra conferir colunas
         print("Dados carregados!")
     except Exception:
         df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
