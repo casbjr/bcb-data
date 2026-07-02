@@ -23,6 +23,7 @@ from bacen_cartao_pipeline import (
 )
 
 OUT_PATH = Path(__file__).parent.parent / "docs" / "data.json"
+ROOT_OUT_PATH = Path(__file__).parent.parent / "data.json"
 
 # Rótulo, unidade e tipo (PF/PJ/Total) de cada série SGS, pra exibição e
 # filtro no painel
@@ -148,7 +149,8 @@ def main():
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"data.json gerado em {OUT_PATH} ({len(sgs_blocks)} séries SGS, "
+    ROOT_OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"data.json gerado em {OUT_PATH} e {ROOT_OUT_PATH} ({len(sgs_blocks)} séries SGS, "
           f"{len(ifdata_blocks)} IF.data, {len(reclamacoes_blocks)} reclamações)")
 
 

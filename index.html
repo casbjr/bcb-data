@@ -412,13 +412,18 @@ function makeCard(series, staleDays){
 }
 
 async function loadData(){
-  try{
-    const res = await fetch('./data.json', {cache:'no-store'});
-    if(!res.ok) throw new Error('sem data.json ainda');
-    return await res.json();
-  }catch(e){
-    return MOCK;
+  const candidates = ['./docs/data.json', './data.json'];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {cache:'no-store'});
+      if (res.ok) return await res.json();
+    } catch (e) {
+      // tenta o próximo candidato
+    }
   }
+
+  return MOCK;
 }
 
 function makeChip(text, active, onClick){
