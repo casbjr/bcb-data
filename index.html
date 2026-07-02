@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Cartão · Bacen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0A0C10;
+    --panel: #12161C;
+    --panel-hover: #161B22;
+    --line: #1F2630;
+    --ink: #E8E6E0;
+    --ink-dim: #7A828E;
+    --ink-faint: #4A5057;
+    --amber: #D9A441;
+    --up: #D9584A;
+    --down: #4FAE7C;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, rgba(217,164,65,0.05), transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height:100vh;
+    padding: 28px 20px 60px;
+  }
+
+  /* ---------- header / ticker ---------- */
+  header{
+    max-width:1180px; margin:0 auto 28px;
+    display:flex; align-items:baseline; justify-content:space-between;
+    flex-wrap:wrap; gap:10px 24px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;
+  }
+  .brand{
+    font-family:var(--mono); font-weight:600; font-size:15px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--ink);
+  }
+  .brand span{ color:var(--amber); }
+  .status{
+    font-family:var(--mono); font-size:12px; color:var(--ink-dim);
+    display:flex; align-items:center; gap:8px;
+  }
+  .dot{
+    width:7px; height:7px; border-radius:50%; background:var(--down);
+    box-shadow:0 0 0 3px rgba(79,174,124,0.15);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; } 50%{ opacity:0.35; }
+  }
+  @media (prefers-reduced-motion: reduce){ .dot{ animation:none; } }
+
+  /* ---------- section labels ---------- */
+  .section-label{
+    max-width:1180px; margin: 34px auto 14px;
+    font-family:var(--mono); font-size:11px; letter-spacing:0.14em;
+    text-transform:uppercase; color:var(--ink-faint);
+    display:flex; align-items:center; gap:12px;
+  }
+  .section-label::after{
+    content:""; flex:1; height:1px; background:var(--line);
+  }
+
+  /* ---------- freshest strip ---------- */
+  .fresh-strip{
+    max-width:1180px; margin:0 auto;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:6px; padding:12px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:12px; color:var(--ink-dim);
+  }
+  .fresh-strip strong{ color:var(--amber); font-weight:600; }
+  .fresh-strip .sep{ color:var(--ink-faint); }
+
+  /* ---------- filter chips ---------- */
+  .chips{
+    max-width:1180px; margin:0 auto 14px;
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  .chip{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.04em;
+    color:var(--ink-dim); background:var(--panel);
+    border:1px solid var(--line); border-radius:20px;
+    padding:5px 13px; cursor:pointer; user-select:none;
+    transition:all .12s ease;
+  }
+  .chip:hover{ color:var(--ink); border-color:var(--ink-faint); }
+  .chip.active{ color:#0A0C10; background:var(--amber); border-color:var(--amber); font-weight:600; }
+
+  .chips.tier{ margin-bottom:8px; }
+  .chips.tier .chip{ font-size:10px; padding:4px 11px; opacity:0.85; }
+  .chips.tier .chip.active{ background:var(--ink-dim); border-color:var(--ink-dim); opacity:1; }
+
+  /* ---------- freshness badge on card ---------- */
+  .fresh-badge{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-family:var(--mono);
+  }
+  .fresh-badge .fdot{ width:5px; height:5px; border-radius:50%; }
+  .fresh-badge.ok{ color:var(--down); }
+  .fresh-badge.ok .fdot{ background:var(--down); }
+  .fresh-badge.stale{ color:var(--amber); }
+  .fresh-badge.stale .fdot{ background:var(--amber); }
+
+  /* ---------- grid ---------- */
+  .grid{
+    max-width:1180px; margin:0 auto;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr));
+    gap:14px;
+  }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--ink-faint);
+    border-radius:6px;
+    padding:16px 18px 14px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .card:hover{ background:var(--panel-hover); }
+  .card.trend-up{ border-left-color:var(--up); }
+  .card.trend-down{ border-left-color:var(--down); }
+
+  .card-top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    margin-bottom:10px;
+  }
+  .label{
+    font-size:12px; color:var(--ink-dim); line-height:1.35;
+    max-width:70%;
+  }
+  .badge{
+    font-family:var(--mono); font-size:11px; font-weight:600;
+    padding:2px 7px; border-radius:4px; white-space:nowrap;
+  }
+  .badge.up{ color:var(--up); background:rgba(217,88,74,0.12); }
+  .badge.down{ color:var(--down); background:rgba(79,174,124,0.12); }
+  .badge.flat{ color:var(--ink-dim); background:rgba(122,130,142,0.12); }
+
+  .bignum{
+    font-family:var(--mono); font-weight:700; font-size:30px;
+    letter-spacing:-0.01em; margin-bottom:2px;
+  }
+  .unit{ font-size:15px; color:var(--ink-dim); font-weight:500; margin-left:4px; }
+  .meta{
+    font-family:var(--mono); font-size:11px; color:var(--ink-faint);
+    margin-bottom:10px;
+  }
+
+  .spark{ height:46px; }
+
+  footer{
+    max-width:1180px; margin:40px auto 0;
+    font-family:var(--mono); font-size:11px; color:var(--ink-faint);
+    border-top:1px solid var(--line); padding-top:16px;
+  }
+  footer a{ color:var(--ink-dim); }
+
+  .empty{
+    grid-column:1/-1; text-align:center; padding:40px 20px;
+    color:var(--ink-dim); font-size:13px; font-family:var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">painel <span>cartão</span> · dados abertos bacen</div>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">carregando…</span></div>
+</header>
+
+<div class="fresh-strip" id="freshStrip">calculando dado mais recente…</div>
+
+<div id="sgsSection">
+  <div class="section-label">SGS — mercado, mensal</div>
+  <div class="chips" id="sgsChips"></div>
+  <div class="grid" id="sgsGrid"></div>
+</div>
+
+<div id="ifSection">
+  <div class="section-label">IF.data — por instituição, trimestral</div>
+  <div class="chips tier" id="ifTierChips"></div>
+  <div class="chips" id="ifChips"></div>
+  <div class="grid" id="ifGrid"></div>
+</div>
+
+<div id="reclamacoesSection">
+  <div class="section-label">Ranking de Reclamações — por instituição, trimestral</div>
+  <div class="chips tier" id="reclamacoesTierChips"></div>
+  <div class="chips" id="reclamacoesChips"></div>
+  <div class="grid" id="reclamacoesGrid"></div>
+</div>
+
+<footer>
+  Fonte: SGS e IF.data, Banco Central do Brasil · protótipo interno, não é dado oficial de RI ·
+  atualize <code>data.json</code> via GitHub Actions rodando <code>bacen_cartao_pipeline.py</code>
+</footer>
+
+<script>
+/* =========================================================================
+   DADOS
+   -------------------------------------------------------------------------
+   Em produção: fetch('./data.json') gerado pelo GitHub Actions a partir do
+   bacen_cartao_pipeline.py. Enquanto não existe, cai no MOCK abaixo pra
+   você já ver o layout funcionando.
+
+   Formato esperado do data.json:
+   {
+     "updated_at": "2026-06-30T15:00:00Z",
+     "sgs": [
+       { "key": "inadimplencia_cartao_total_pf", "label": "Inadimplência cartão total · PF",
+         "unit": "%", "type": "PF", "dates": ["2026-01","2026-02","2026-03","2026-04"],
+         "values": [9.21, 9.36, 9.09, 9.28] }
+     ],
+     "ifdata": [
+       { "key": "porto_cartao", "label": "Porto · carteira cartão PF",
+         "unit": "R$ bi", "group": "Porto", "dates": ["2025-06","2025-09","2025-12","2026-03"],
+         "values": [4.1, 4.3, 4.5, 4.6] }
+     ],
+     "reclamacoes": [
+       { "key": "porto_reclamacoes", "label": "Porto · índice de reclamações",
+         "unit": "pontos", "group": "Porto", "dates": ["2025T3","2025T4","2026T1"],
+         "values": [18.4, 21.2, 19.8] }
+     ]
+   }
+   "type" (PF/PJ/Total) e "group" (nome do banco) alimentam os chips de
+   filtro no topo de cada seção do painel.
+   ========================================================================= */
+
+const MOCK = {
+  updated_at: new Date().toISOString(),
+  sgs: [
+    { key:"inad_total_pf", label:"Inadimplência cartão total · PF", unit:"%", type:"PF",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[9.21,9.36,9.09,9.28] },
+    { key:"inad_rotativo_pf", label:"Inadimplência rotativo · PF", unit:"%", type:"PF",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[11.8,12.1,11.6,11.9] },
+    { key:"juros_rotativo_pf", label:"Juros médios rotativo · PF", unit:"% a.m.", type:"PF",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[13.4,13.6,13.2,13.5] },
+    { key:"juros_total_pf", label:"Juros médios cartão total · PF", unit:"% a.m.", type:"PF",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[9.8,9.9,9.7,9.85] },
+    { key:"inad_rotativo_pj", label:"Inadimplência rotativo · PJ", unit:"%", type:"PJ",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[6.4,6.6,6.3,6.5] },
+    { key:"inad_total_sfn", label:"Inadimplência total · SFN", unit:"%", type:"Total",
+      dates:["jan/26","fev/26","mar/26","abr/26"], values:[3.1,3.15,3.05,3.1] },
+  ],
+  ifdata: [
+    { key:"porto_cartao", label:"Porto · carteira cartão PF", unit:"R$ bi", group:"Porto", tier:"concorrente",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[4.1,4.3,4.5,4.6] },
+    { key:"pan_cartao", label:"Banco Pan · carteira cartão PF", unit:"R$ bi", group:"Banco Pan", tier:"concorrente",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[8.9,9.4,9.7,10.1] },
+    { key:"bv_cartao", label:"BV · carteira cartão PF", unit:"R$ bi", group:"BV", tier:"concorrente",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[6.2,6.5,6.6,6.8] },
+    { key:"inter_cartao", label:"Inter · carteira cartão PF", unit:"R$ bi", group:"Inter", tier:"concorrente",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[12.3,13.1,13.9,14.6] },
+    { key:"c6_cartao", label:"C6 Bank · carteira cartão PF", unit:"R$ bi", group:"C6 Bank", tier:"concorrente",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[15.8,16.9,17.5,18.2] },
+    { key:"itau_cartao", label:"Itaú · carteira cartão PF", unit:"R$ bi", group:"Itaú", tier:"benchmark",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[110,114,118,121] },
+    { key:"bradesco_cartao", label:"Bradesco · carteira cartão PF", unit:"R$ bi", group:"Bradesco", tier:"benchmark",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[95,97,99,101] },
+    { key:"santander_cartao", label:"Santander · carteira cartão PF", unit:"R$ bi", group:"Santander", tier:"benchmark",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[68,70,72,74] },
+    { key:"btg_cartao", label:"BTG Pactual · carteira cartão PF", unit:"R$ bi", group:"BTG Pactual", tier:"benchmark",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[9.1,10.3,11.2,12.4] },
+    { key:"nubank_cartao", label:"Nubank · carteira cartão PF", unit:"R$ bi", group:"Nubank", tier:"benchmark",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[58,63,68,73] },
+  ],
+  reclamacoes: [
+    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente",
+      dates:["3Q25","4Q25","1Q26"], values:[18.4,21.2,19.8] },
+    { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente",
+      dates:["3Q25","4Q25","1Q26"], values:[22.6,20.1,23.4] },
+    { key:"bv_reclamacoes", label:"BV · índice de reclamações", unit:"pontos", group:"BV", tier:"concorrente",
+      dates:["3Q25","4Q25","1Q26"], values:[16.9,17.5,15.8] },
+    { key:"inter_reclamacoes", label:"Inter · índice de reclamações", unit:"pontos", group:"Inter", tier:"concorrente",
+      dates:["3Q25","4Q25","1Q26"], values:[27.3,25.9,29.1] },
+    { key:"c6_reclamacoes", label:"C6 Bank · índice de reclamações", unit:"pontos", group:"C6 Bank", tier:"concorrente",
+      dates:["3Q25","4Q25","1Q26"], values:[30.2,28.4,31.6] },
+    { key:"itau_reclamacoes", label:"Itaú · índice de reclamações", unit:"pontos", group:"Itaú", tier:"benchmark",
+      dates:["3Q25","4Q25","1Q26"], values:[24.1,22.9,25.6] },
+    { key:"bradesco_reclamacoes", label:"Bradesco · índice de reclamações", unit:"pontos", group:"Bradesco", tier:"benchmark",
+      dates:["3Q25","4Q25","1Q26"], values:[38.7,41.2,43.9] },
+    { key:"santander_reclamacoes", label:"Santander · índice de reclamações", unit:"pontos", group:"Santander", tier:"benchmark",
+      dates:["3Q25","4Q25","1Q26"], values:[29.4,31.8,28.2] },
+    { key:"btg_reclamacoes", label:"BTG Pactual · índice de reclamações", unit:"pontos", group:"BTG Pactual", tier:"benchmark",
+      dates:["3Q25","4Q25","1Q26"], values:[9.8,11.2,10.4] },
+    { key:"nubank_reclamacoes", label:"Nubank · índice de reclamações", unit:"pontos", group:"Nubank", tier:"benchmark",
+      dates:["3Q25","4Q25","1Q26"], values:[31.5,29.8,33.2] },
+  ]
+};
+
+// Prazo esperado de publicação, em dias, pra marcar frescor (SGS ~60d de
+// defasagem mensal; IF.data ~60-90d de defasagem trimestral; ranking de
+// reclamações costuma sair ~30-45d após fechar o trimestre).
+const STALE_THRESHOLD_DAYS = { sgs: 75, ifdata: 130, reclamacoes: 100 };
+
+
+function fmt(v, unit){
+  const n = Number(v);
+  const s = unit === "R$ bi" ? n.toLocaleString('pt-BR',{maximumFractionDigits:1})
+                              : n.toLocaleString('pt-BR',{maximumFractionDigits:2});
+  return s;
+}
+
+function trendInfo(values){
+  if(values.length < 2) return {dir:"flat", delta:0};
+  const last = values[values.length-1];
+  const prev = values[values.length-2];
+  const delta = last - prev;
+  const dir = Math.abs(delta) < 0.005 ? "flat" : (delta > 0 ? "up" : "down");
+  return {dir, delta};
+}
+
+// Converte os formatos de data usados nas séries (jan/26, 2Q25, 202503...)
+// numa data aproximada, só pra comparar recência - não precisa ser exata.
+function parseRoughDate(s){
+  s = String(s);
+  const meses = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+  let m;
+  if((m = s.match(/^(\w{3})\/(\d{2})$/))){
+    return new Date(2000+parseInt(m[2]), meses[m[1].toLowerCase()] ?? 0, 1);
+  }
+  if((m = s.match(/^(\d)Q(\d{2})$/))){
+    return new Date(2000+parseInt(m[2]), (parseInt(m[1])-1)*3, 1);
+  }
+  if((m = s.match(/^(\d{4})(\d{2})$/))){
+    return new Date(parseInt(m[1]), parseInt(m[2])-1, 1);
+  }
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function makeCard(series, staleDays){
+  const { label, unit, dates, values } = series;
+  const { dir, delta } = trendInfo(values);
+  const last = values[values.length-1];
+  const lastDate = parseRoughDate(dates[dates.length-1]);
+  const ageDays = lastDate ? Math.round((Date.now() - lastDate) / 86400000) : null;
+  const isStale = ageDays !== null && ageDays > staleDays;
+
+  const card = document.createElement('div');
+  card.className = `card trend-${dir === 'flat' ? '' : dir}`.trim();
+
+  const badgeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
+  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '·');
+  const deltaTxt = dir === 'flat' ? 'estável' : `${arrow} ${Math.abs(delta).toLocaleString('pt-BR',{maximumFractionDigits:2})}`;
+
+  const freshClass = isStale ? 'stale' : 'ok';
+  const freshTxt = isStale ? `${ageDays}d atrás` : 'em dia';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="label">${label}</div>
+      <div class="badge ${badgeClass}">${deltaTxt}</div>
+    </div>
+    <div class="bignum">${fmt(last, unit)}<span class="unit">${unit}</span></div>
+    <div class="meta">
+      ${dates[dates.length-1]} · série ${dates[0]}–${dates[dates.length-1]}
+      <span class="fresh-badge ${freshClass}"><span class="fdot"></span>${freshTxt}</span>
+    </div>
+    <div class="spark"><canvas></canvas></div>
+  `;
+
+
+  const ctx = card.querySelector('canvas').getContext('2d');
+  const up = dir === 'up';
+  const lineColor = dir === 'flat' ? '#7A828E' : (up ? '#D9584A' : '#4FAE7C');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        data: values,
+        borderColor: lineColor,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        tension: 0.35,
+        fill: true,
+        backgroundColor: (ctx) => {
+          const g = ctx.chart.ctx.createLinearGradient(0,0,0,46);
+          g.addColorStop(0, lineColor + '33');
+          g.addColorStop(1, lineColor + '00');
+          return g;
+        }
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#161B22', borderColor:'#1F2630', borderWidth:1,
+        titleFont:{family:'IBM Plex Mono', size:10}, bodyFont:{family:'IBM Plex Mono', size:11},
+        padding:8, displayColors:false
+      }},
+      scales:{ x:{display:false}, y:{display:false} },
+      interaction:{ intersect:false, mode:'index' }
+    }
+  });
+
+  return card;
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('./data.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('sem data.json ainda');
+    return await res.json();
+  }catch(e){
+    return MOCK;
+  }
+}
+
+function makeChip(text, active, onClick){
+  const el = document.createElement('div');
+  el.className = 'chip' + (active ? ' active' : '');
+  el.textContent = text;
+  el.onclick = onClick;
+  return el;
+}
+
+function findFreshest(allSeries){
+  let best = null;
+  allSeries.forEach(s => {
+    const d = parseRoughDate(s.dates[s.dates.length-1]);
+    if(d && (!best || d > best.date)) best = { date: d, label: s.label, point: s.dates[s.dates.length-1] };
+  });
+  return best;
+}
+
+function renderGrid(gridEl, series, staleDays){
+  gridEl.innerHTML = '';
+  if(!series.length){ gridEl.innerHTML = '<div class="empty">nenhuma série nesse filtro</div>'; return; }
+  series.forEach(s => gridEl.appendChild(makeCard(s, staleDays)));
+}
+
+function setupFilters(chipsEl, gridEl, allSeries, groupKey, staleDays){
+  const groups = ['Todos', ...new Set(allSeries.map(s => s[groupKey]).filter(Boolean))];
+  chipsEl.innerHTML = '';
+  groups.forEach((g, i) => {
+    chipsEl.appendChild(makeChip(g, i === 0, () => {
+      [...chipsEl.children].forEach(c => c.classList.remove('active'));
+      chipsEl.children[i].classList.add('active');
+      const filtered = g === 'Todos' ? allSeries : allSeries.filter(s => s[groupKey] === g);
+      renderGrid(gridEl, filtered, staleDays);
+    }));
+  });
+  renderGrid(gridEl, allSeries, staleDays);
+}
+
+const TIER_LABELS = { concorrente: 'Concorrentes diretos', benchmark: 'Benchmark' };
+
+function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays){
+  const tiers = ['Todos', ...new Set(allSeries.map(s => s.tier).filter(Boolean))];
+  tierChipsEl.innerHTML = '';
+
+  tiers.forEach((t, i) => {
+    const label = t === 'Todos' ? 'Todos' : (TIER_LABELS[t] || t);
+    tierChipsEl.appendChild(makeChip(label, i === 0, () => {
+      [...tierChipsEl.children].forEach(c => c.classList.remove('active'));
+      tierChipsEl.children[i].classList.add('active');
+      const byTier = t === 'Todos' ? allSeries : allSeries.filter(s => s.tier === t);
+      setupFilters(groupChipsEl, gridEl, byTier, 'group', staleDays);
+    }));
+  });
+
+  setupFilters(groupChipsEl, gridEl, allSeries, 'group', staleDays);
+}
+
+function render(data){
+  const sgs = data.sgs || [];
+  const ifdata = data.ifdata || [];
+  const reclamacoes = data.reclamacoes || [];
+
+  setupFilters(document.getElementById('sgsChips'), document.getElementById('sgsGrid'), sgs, 'type', STALE_THRESHOLD_DAYS.sgs);
+  setupTieredFilters(document.getElementById('ifTierChips'), document.getElementById('ifChips'), document.getElementById('ifGrid'), ifdata, STALE_THRESHOLD_DAYS.ifdata);
+  setupTieredFilters(document.getElementById('reclamacoesTierChips'), document.getElementById('reclamacoesChips'), document.getElementById('reclamacoesGrid'), reclamacoes, STALE_THRESHOLD_DAYS.reclamacoes);
+
+  const freshest = findFreshest([...sgs, ...ifdata, ...reclamacoes]);
+  const stripEl = document.getElementById('freshStrip');
+  stripEl.innerHTML = freshest
+    ? `dado mais recente do painel: <strong>${freshest.point}</strong> <span class="sep">·</span> ${freshest.label}`
+    : 'sem dados carregados';
+
+  const dt = new Date(data.updated_at || Date.now());
+  document.getElementById('statusText').textContent =
+    'atualizado ' + dt.toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
+}
+
+loadData().then(render);
+</script>
+
+</body>
+</html>
