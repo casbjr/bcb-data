@@ -288,6 +288,8 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     `df.columns` na primeira vez e ajuste os termos de busca se precisar.
     """
     params = {"ano": ano, "periodicidade": periodicidade, "periodo": periodo, "tipo": tipo}
+    # Parâmetros definidos para o 1º Tri de 2026
+    params = {"ano": 2026,"periodicidade": "TRIMESTRAL","periodo": 1,"tipo": "Bancos e financeiras",}
     resp = requests.get(RANKING_RECLAMACOES_URL, params=params, timeout=60)
     resp.raise_for_status()
 
@@ -295,8 +297,11 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     # diferente, o pandas geralmente detecta sozinho com engine='python'.
     try:
         df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
+        print(df.head(3))
+        print("Dados carregados!")
     except Exception:
         df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
+        print(f"Erro ao acessar a API: {resp.status_code} - {resp.reason}")
 
     return df
 

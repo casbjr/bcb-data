@@ -118,6 +118,7 @@ def build_reclamacoes_block(periodos):
 
 
 
+def main():
     sgs_blocks = build_sgs_block()
 
     # Ajuste os trimestres conforme forem sendo publicados no IF.data
@@ -133,6 +134,7 @@ def build_reclamacoes_block(periodos):
     periodos_reclamacoes = [(2025, 3), (2025, 4), (2026, 1)]
     try:
         reclamacoes_blocks = build_reclamacoes_block(periodos_reclamacoes)
+        print(reclamacoes_blocks)
     except Exception as e:
         print(f"[aviso] Ranking de reclamações falhou ({e})")
         reclamacoes_blocks = []
