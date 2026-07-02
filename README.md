@@ -7,7 +7,7 @@ Reclamações por banco).
 ## Estrutura
 
 ```
-docs/index.html              -> o painel (GitHub Pages serve essa pasta)
+index.html              -> o painel (GitHub Pages serve essa pasta)
 scripts/bacen_cartao_pipeline.py   -> puxa os dados do Bacen
 scripts/generate_data_json.py      -> gera docs/data.json pro painel ler
 .github/workflows/atualizar-painel.yml  -> roda tudo automaticamente 1x/semana
