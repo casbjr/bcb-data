@@ -6,7 +6,7 @@
 <title>Painel Cartão · Bacen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg: #0A0C10;
@@ -372,41 +372,52 @@ function makeCard(series, staleDays){
   `;
 
 
-  const ctx = card.querySelector('canvas').getContext('2d');
-  const up = dir === 'up';
-  const lineColor = dir === 'flat' ? '#7A828E' : (up ? '#D9584A' : '#4FAE7C');
+  // Se o CDN do Chart.js falhar por qualquer motivo, o card ainda deve
+  // aparecer (só sem o sparkline) em vez de travar o grid inteiro.
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js não carregou - sparkline desabilitado para este card.');
+    return card;
+  }
 
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: dates,
-      datasets: [{
-        data: values,
-        borderColor: lineColor,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 3,
-        tension: 0.35,
-        fill: true,
-        backgroundColor: (ctx) => {
-          const g = ctx.chart.ctx.createLinearGradient(0,0,0,46);
-          g.addColorStop(0, lineColor + '33');
-          g.addColorStop(1, lineColor + '00');
-          return g;
-        }
-      }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{
-        backgroundColor:'#161B22', borderColor:'#1F2630', borderWidth:1,
-        titleFont:{family:'IBM Plex Mono', size:10}, bodyFont:{family:'IBM Plex Mono', size:11},
-        padding:8, displayColors:false
-      }},
-      scales:{ x:{display:false}, y:{display:false} },
-      interaction:{ intersect:false, mode:'index' }
-    }
-  });
+  try {
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const up = dir === 'up';
+    const lineColor = dir === 'flat' ? '#7A828E' : (up ? '#D9584A' : '#4FAE7C');
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [{
+          data: values,
+          borderColor: lineColor,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          tension: 0.35,
+          fill: true,
+          backgroundColor: (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0,0,0,46);
+            g.addColorStop(0, lineColor + '33');
+            g.addColorStop(1, lineColor + '00');
+            return g;
+          }
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{
+          backgroundColor:'#161B22', borderColor:'#1F2630', borderWidth:1,
+          titleFont:{family:'IBM Plex Mono', size:10}, bodyFont:{family:'IBM Plex Mono', size:11},
+          padding:8, displayColors:false
+        }},
+        scales:{ x:{display:false}, y:{display:false} },
+        interaction:{ intersect:false, mode:'index' }
+      }
+    });
+  } catch (e) {
+    console.warn('Falha ao desenhar sparkline:', e);
+  }
 
   return card;
 }
