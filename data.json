@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-03T13:41:12.731731+00:00",
+  "updated_at": "2026-07-03T16:35:37.560295+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -479,5 +479,125 @@
     }
   ],
   "ifdata": [],
-  "reclamacoes": []
+  "reclamacoes": [
+    {
+      "key": "banco_c6_(conglomerado)",
+      "label": "BANCO C6 (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BANCO C6 (conglomerado)",
+      "tier": "concorrente",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        55.3,
+        55.3,
+        55.3
+      ]
+    },
+    {
+      "key": "bradesco_(conglomerado)",
+      "label": "BRADESCO (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BRADESCO (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        48.92,
+        48.92,
+        48.92
+      ]
+    },
+    {
+      "key": "btg_pactual/banco_pan_(conglomerado)",
+      "label": "BTG PACTUAL/BANCO PAN (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BTG PACTUAL/BANCO PAN (conglomerado)",
+      "tier": "concorrente",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        42.81,
+        42.81,
+        42.81
+      ]
+    },
+    {
+      "key": "itau_(conglomerado)",
+      "label": "ITAU (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "ITAU (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        34.12,
+        34.12,
+        34.12
+      ]
+    },
+    {
+      "key": "nu_pagamentos_(conglomerado)",
+      "label": "NU PAGAMENTOS (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "NU PAGAMENTOS (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        10.65,
+        10.65,
+        10.65
+      ]
+    },
+    {
+      "key": "porto_seguro_(conglomerado)",
+      "label": "PORTO SEGURO (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "PORTO SEGURO (conglomerado)",
+      "tier": "concorrente",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        150.52,
+        150.52,
+        150.52
+      ]
+    },
+    {
+      "key": "santander_(conglomerado)",
+      "label": "SANTANDER (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "SANTANDER (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        34.49,
+        34.49,
+        34.49
+      ]
+    }
+  ]
 }
