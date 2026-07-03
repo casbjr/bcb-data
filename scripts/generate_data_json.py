@@ -72,7 +72,7 @@ def build_ifdata_block(quarters):
               "ajuste build_ifdata_block() manualmente")
         return []
 
-    # CORREÇÃO 1: Evita que valores nulos gerem NaN inválidos no JSON final
+    # Tratamento contra NaN para não quebrar a estrutura do JSON
     df[col_valor] = df[col_valor].fillna(0)
 
     for nome, grupo in df.groupby("NomeInstituicao"):
@@ -105,7 +105,7 @@ def build_reclamacoes_block(periodos):
     for nome, grupo in df.groupby(col_instituicao):
         grupo = grupo.sort_values(["Ano", "Periodo"])
         
-        # CORREÇÃO 2: .fillna(0) adicionado ao final para garantir que falhas de conversão de string não gerem NaN
+        # Converte strings BR para float americano e substitui nulos gerados por erro por 0
         valores = pd.to_numeric(
             grupo[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
             errors="coerce"
@@ -121,29 +121,34 @@ def build_reclamacoes_block(periodos):
             "unit": "pontos",
             "group": nome,
             "tier": tier,
-            "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], group["Periodo"])],
+            "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
             "values": [round(float(v), 2) for v in valores],
         })
     return blocks
 
 
 def main():
-    sgs_blocks = build_sgs_block()
+    # Proteção do bloco SGS para instabilidades da API do Bacen
+    try:
+        sgs_blocks = build_sgs_block()
+        print(f"[sucesso] SGS processado com {len(sgs_blocks)} séries.")
+    except Exception as e:
+        print(f"[aviso] SGS falhou ({e}) - data.json sai sem dados do SGS")
+        sgs_blocks = []
 
     # Ajuste os trimestres conforme forem sendo publicados no IF.data
     quarters = [202503]
     try:
         ifdata_blocks = build_ifdata_block(quarters)
+        print(f"[sucesso] IF.data processado com {len(ifdata_blocks)} blocos.")
     except Exception as e:
-        print(f"[aviso] IF.data falhou ({e}) - data.json sai só com SGS")
+        print(f"[aviso] IF.data falhou ({e}) - data.json segue sem dados de carteira")
         
-        # Bloco de diagnóstico corrigido
+        # Diagnóstico cru refinado com headers e sintaxe correta OData ($filter)
         import requests
-        # CORREÇÃO 3: Header para o Bacen não bloquear o script Python
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         
         for anomes in quarters:
-            # CORREÇÃO 4: Sintaxe de URL ajustada para OData compatível ($filter)
             url = (f"https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
                    f"IfDataCadastro?$filter=AnoMes eq {anomes}&$top=3&$format=json")
             try:
@@ -156,12 +161,11 @@ def main():
                 print(f"[debug-raw] falha até no request cru: {e2}")
         ifdata_blocks = []
 
-    # Últimos 4 trimestres pra ranking de reclamações - ajuste conforme
-    # forem publicados novos (Bacen costuma soltar ~1 mês após fechar o tri)
+    # Últimos trimestres para o ranking de reclamações
     periodos_reclamacoes = [(2025, 3), (2025, 4), (2026, 1)]
     try:
         reclamacoes_blocks = build_reclamacoes_block(periodos_reclamacoes)
-        print(reclamacoes_blocks)
+        print(f"[sucesso] Reclamações processadas com {len(reclamacoes_blocks)} blocos.")
     except Exception as e:
         print(f"[aviso] Ranking de reclamações falhou ({e})")
         reclamacoes_blocks = []
@@ -173,11 +177,13 @@ def main():
         "reclamacoes": reclamacoes_blocks,
     }
 
+    # Escrita segura dos arquivos de dados
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     ROOT_OUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"data.json gerado em {OUT_PATH} e {ROOT_OUT_PATH} ({len(sgs_blocks)} séries SGS, "
-          f"{len(ifdata_blocks)} IF.data, {len(reclamacoes_blocks)} reclamações)")
+    
+    print(f"data.json gerado com sucesso em {OUT_PATH} e {ROOT_OUT_PATH} ("
+          f"{len(sgs_blocks)} séries SGS, {len(ifdata_blocks)} IF.data, {len(reclamacoes_blocks)} reclamações)")
 
 
 if __name__ == "__main__":
