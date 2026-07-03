@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-03T16:43:17.040708+00:00",
+  "updated_at": "2026-07-03T20:18:59.336082+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -498,6 +498,23 @@
       ]
     },
     {
+      "key": "banco_cnh_industrial_capital_s.a_(conglomerado)",
+      "label": "BANCO CNH INDUSTRIAL CAPITAL S.A (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BANCO CNH INDUSTRIAL CAPITAL S.A (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
       "key": "bradesco_(conglomerado)",
       "label": "BRADESCO (conglomerado) · índice de reclamações",
       "unit": "pontos",
@@ -529,6 +546,23 @@
         42.81,
         42.81,
         42.81
+      ]
+    },
+    {
+      "key": "facilita_ip_(conglomerado)",
+      "label": "FACILITA IP (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "FACILITA IP (conglomerado)",
+      "tier": "benchmark",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        0.0,
+        0.0,
+        0.0
       ]
     },
     {
