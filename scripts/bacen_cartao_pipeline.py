@@ -115,7 +115,7 @@ def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     de busca, para você confirmar o nome oficial antes de automatizar."""
     ifdata = IFDATA()
     cadastro_ep = ifdata.get_endpoint("IfDataCadastro")
-    cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect(timeout=120)
+    cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect()
 
     padrao = "|".join(_todos_termos())
     resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
@@ -144,7 +144,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
 
     resultados = []
     for anomes in anomes_list:
-        cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect(timeout=120)
+        cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect()
 
         padrao = "|".join(_todos_termos())
         alvo = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)].copy()
@@ -157,7 +157,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
         dados = (
             valores_ep.query()
             .parameters(AnoMes=anomes, TipoInstituicao=TIPO_INSTITUICAO, Relatorio=RELATORIO_CARTAO_PF)
-            .collect(timeout=120)
+            .collect()
         )
         if dados.empty:
             print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} "
