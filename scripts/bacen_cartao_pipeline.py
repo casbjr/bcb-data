@@ -113,7 +113,7 @@ TIPO_INSTITUICAO = 1
 def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     """Função de apoio: lista o que o cadastro do Bacen tem para os termos
     de busca, para você confirmar o nome oficial antes de automatizar."""
-    ifdata = IFDATA(timeout=120)
+    ifdata = IFDATA()
     cadastro_ep = ifdata.get_endpoint("IfDataCadastro")
     cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect(timeout=120)
 
@@ -138,7 +138,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
     pros bancos-alvo (concorrentes diretos + benchmarks), nos trimestres
     informados."""
-    ifdata = IFDATA(timeout=120)
+    ifdata = IFDATA()
     valores_ep = ifdata.get_endpoint("IfDataValores")
     cadastro_ep = ifdata.get_endpoint("IfDataCadastro")
 
