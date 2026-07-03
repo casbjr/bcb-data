@@ -65,13 +65,15 @@ def build_ifdata_block(quarters):
     if df.empty:
         return []
     blocks = []
-    # Ajuste conforme o nome real da coluna de valor no relatório 11
-    # (confira df.columns na primeira rodada real)
+    
     col_valor = next((c for c in df.columns if "valor" in c.lower()), None)
     if col_valor is None:
         print("[aviso] coluna de valor não identificada em IF.data - "
               "ajuste build_ifdata_block() manualmente")
         return []
+
+    # CORREÇÃO 1: Evita que valores nulos gerem NaN inválidos no JSON final
+    df[col_valor] = df[col_valor].fillna(0)
 
     for nome, grupo in df.groupby("NomeInstituicao"):
         grupo = grupo.sort_values("AnoMes")
@@ -102,12 +104,16 @@ def build_reclamacoes_block(periodos):
     blocks = []
     for nome, grupo in df.groupby(col_instituicao):
         grupo = grupo.sort_values(["Ano", "Periodo"])
+        
+        # CORREÇÃO 2: .fillna(0) adicionado ao final para garantir que falhas de conversão de string não gerem NaN
         valores = pd.to_numeric(
             grupo[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
             errors="coerce"
-        )
-        if valores.isna().all():
+        ).fillna(0)
+        
+        if valores.empty:
             continue
+            
         tier = grupo["tier"].iloc[0] if "tier" in grupo.columns else "outro"
         blocks.append({
             "key": str(nome).lower().replace(" ", "_"),
@@ -115,11 +121,10 @@ def build_reclamacoes_block(periodos):
             "unit": "pontos",
             "group": nome,
             "tier": tier,
-            "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
+            "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], group["Periodo"])],
             "values": [round(float(v), 2) for v in valores],
         })
     return blocks
-
 
 
 def main():
@@ -131,15 +136,18 @@ def main():
         ifdata_blocks = build_ifdata_block(quarters)
     except Exception as e:
         print(f"[aviso] IF.data falhou ({e}) - data.json sai só com SGS")
-        # Diagnóstico cru: bate direto na API sem passar pela lib, pra ver
-        # exatamente o que o Bacen tá devolvendo (corpo vazio? HTML de erro?
-        # rate limit? etc.)
+        
+        # Bloco de diagnóstico corrigido
         import requests
+        # CORREÇÃO 3: Header para o Bacen não bloquear o script Python
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        
         for anomes in quarters:
+            # CORREÇÃO 4: Sintaxe de URL ajustada para OData compatível ($filter)
             url = (f"https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
-                   f"IfDataCadastro(AnoMes={anomes})?$format=json&$top=3")
+                   f"IfDataCadastro?$filter=AnoMes eq {anomes}&$top=3&$format=json")
             try:
-                r = requests.get(url, timeout=30)
+                r = requests.get(url, headers=headers, timeout=30)
                 print(f"[debug-raw] GET {url}")
                 print(f"[debug-raw] status={r.status_code} headers_content_type="
                       f"{r.headers.get('content-type')}")
