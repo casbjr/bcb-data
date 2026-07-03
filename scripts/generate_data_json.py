@@ -131,6 +131,21 @@ def main():
         ifdata_blocks = build_ifdata_block(quarters)
     except Exception as e:
         print(f"[aviso] IF.data falhou ({e}) - data.json sai só com SGS")
+        # Diagnóstico cru: bate direto na API sem passar pela lib, pra ver
+        # exatamente o que o Bacen tá devolvendo (corpo vazio? HTML de erro?
+        # rate limit? etc.)
+        import requests
+        for anomes in quarters:
+            url = (f"https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
+                   f"IfDataCadastro(AnoMes={anomes})?$format=json&$top=3")
+            try:
+                r = requests.get(url, timeout=30)
+                print(f"[debug-raw] GET {url}")
+                print(f"[debug-raw] status={r.status_code} headers_content_type="
+                      f"{r.headers.get('content-type')}")
+                print(f"[debug-raw] body[:500]={r.text[:500]!r}")
+            except Exception as e2:
+                print(f"[debug-raw] falha até no request cru: {e2}")
         ifdata_blocks = []
 
     # Últimos 4 trimestres pra ranking de reclamações - ajuste conforme
