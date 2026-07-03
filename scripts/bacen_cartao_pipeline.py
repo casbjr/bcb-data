@@ -297,7 +297,8 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     # diferente, o pandas geralmente detecta sozinho com engine='python'.
     try:
         df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
-        print(df.head(30))  # inspeciona as primeiras linhas pra conferir colunas
+        print(f"[debug] colunas do ranking de reclamações: {list(df.columns)}")
+        print(df.head(5).to_string())  # inspeciona as primeiras linhas sem truncar colunas
         print("Dados carregados!")
     except Exception:
         df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
@@ -326,6 +327,9 @@ def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFr
         padrao = "|".join(_todos_termos())
         alvo = df[df[col_instituicao].astype(str).str.contains(padrao, case=False, na=False)].copy()
         if alvo.empty:
+            nomes_unicos = df[col_instituicao].dropna().unique().tolist()
+            print(f"[aviso] nenhum banco-alvo bateu em {ano}T{periodo} (coluna='{col_instituicao}') - "
+                  f"nomes disponíveis nesse arquivo: {nomes_unicos}")
             continue
 
         alvo["tier"] = alvo[col_instituicao].apply(identificar_tier)
