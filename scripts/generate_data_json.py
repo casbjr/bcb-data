@@ -102,7 +102,10 @@ def build_reclamacoes_block(periodos):
     blocks = []
     for nome, grupo in df.groupby(col_instituicao):
         grupo = grupo.sort_values(["Ano", "Periodo"])
-        valores = pd.to_numeric(grupo[col_indice], errors="coerce")
+        valores = pd.to_numeric(
+            grupo[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
+            errors="coerce"
+        )
         if valores.isna().all():
             continue
         tier = grupo["tier"].iloc[0] if "tier" in grupo.columns else "outro"
