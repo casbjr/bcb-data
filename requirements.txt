@@ -2,6 +2,6 @@
 # (0.3.4 -> 0.3.5 -> 0.3.6 -> 0.4.0, tudo entre fev/2026 e jun/2026, trocando
 # o cliente HTTP inteiro de requests pra httpx). A 0.3.3 ficou parada e
 # testada em produção de abr/2025 a fev/2026 sem mudança de API.
-python-bcb
+python-bcb==0.3.3
 pandas>=2.0
 requests>=2.31
