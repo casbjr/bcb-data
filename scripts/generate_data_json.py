@@ -230,17 +230,35 @@ def main():
         print(f"[aviso] IF.data falhou ({e}) - data.json segue sem dados de carteira")
 
         if DEBUG:
+            import json as _json
             import requests
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             for anomes in quarters:
-                url = (f"https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/"
-                       f"IfDataCadastro?$filter=AnoMes eq {anomes}&$top=3&$format=json")
+                url = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/IfDataCadastro"
+                # Usa params= em vez de f-string manual - o requests cuida do
+                # urlencode (o espaço em "AnoMes eq 202603" precisa virar %20,
+                # senão o Bacen devolve 400 "URI is malformed").
+                params = {"$filter": f"AnoMes eq {anomes}", "$top": 3, "$format": "json"}
                 try:
-                    r = requests.get(url, headers=headers, timeout=30)
-                    print(f"[debug-raw] GET {url}")
+                    r = requests.get(url, headers=headers, params=params, timeout=30)
+                    print(f"[debug-raw] GET {r.url}")
                     print(f"[debug-raw] status={r.status_code} headers_content_type="
                           f"{r.headers.get('content-type')}")
                     print(f"[debug-raw] body[:500]={r.text[:500]!r}")
+
+                    # Testa a hipótese de wrapper anti-XSSI tipo /*...*/ - se
+                    # for isso, o parse direto falha mas o parse "limpo" funciona.
+                    corpo = r.text.strip()
+                    if corpo.startswith("/*") and corpo.endswith("*/"):
+                        corpo_limpo = corpo[2:-2].strip()
+                        try:
+                            _json.loads(corpo_limpo)
+                            print("[debug-raw] CONFIRMADO: resposta vem embrulhada em /*...*/ "
+                                  "e o conteúdo de dentro É um JSON válido - é isso que está "
+                                  "quebrando o python-bcb 0.3.3.")
+                        except Exception as e3:
+                            print(f"[debug-raw] tinha wrapper /*...*/ mas o conteúdo de dentro "
+                                  f"também não é JSON válido: {e3}")
                 except Exception as e2:
                     print(f"[debug-raw] falha até no request cru: {e2}")
         ifdata_blocks = []
