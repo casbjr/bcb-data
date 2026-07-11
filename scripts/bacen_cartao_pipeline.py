@@ -87,20 +87,22 @@ def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
 #                  aspiracional, não como comparação direta de porte
 #
 # ATENÇÃO regex: os termos abaixo são usados como substring (via
-# str.contains), sem borda de palavra. "ITA" por exemplo casa com
-# qualquer nome que contenha essa sequência em qualquer posição, não só
-# "ITAÚ ...". Isso é proposital pra pegar variações de razão social
-# (ITAÚ UNIBANCO, ITAÚ UNIBANCO HOLDING etc.), mas SEMPRE rode
-# listar_instituicoes_alvo() antes de confiar num trimestre novo, pra
-# conferir se não entrou nenhuma instituição indesejada por coincidência
-# de nome.
+# str.contains), sem borda de palavra. Por isso os termos precisam ser
+# específicos o suficiente pra não bater com palavras que só contêm a
+# mesma sequência de letras no meio - já vimos isso acontecer na prática:
+# "ITA" batia com "FACILITA IP", "CAPITAL" e "DIGITAL" (todas contêm
+# "ita" no meio da palavra); "PORTO " batia com "BANCO PORTO REAL DE
+# INVEST.S.A", um banco completamente diferente da Porto Seguro. Prefira
+# sempre termos de 2+ palavras ou nomes completos em vez de fragmentos
+# curtos. SEMPRE rode listar_instituicoes_alvo() antes de confiar num
+# trimestre novo, pra conferir se não entrou nada indesejado.
 BANCOS_ALVO = {
-    "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK", "PORTO "], "tier": "concorrente"},
+    "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK"], "tier": "concorrente"},
     "pan":       {"termos": ["BANCO PAN"], "tier": "concorrente"},
     "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA"], "tier": "concorrente"},
     "inter":     {"termos": ["BANCO INTER"], "tier": "concorrente"},
     "c6":        {"termos": ["C6 BANK", "BANCO C6"], "tier": "concorrente"},
-    "itau":      {"termos": ["ITA"], "tier": "benchmark"},           # pega ITAÚ UNIBANCO, ITAÚ UNIBANCO HOLDING etc.
+    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO"], "tier": "benchmark"},  # nome completo evita falso-positivo em palavras como "capital", "digital", "facilita"
     "bradesco":  {"termos": ["BRADESCO"], "tier": "benchmark"},
     "santander": {"termos": ["SANTANDER"], "tier": "benchmark"},
     "btg":       {"termos": ["BTG PACTUAL"], "tier": "benchmark"},
