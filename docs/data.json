@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-11T22:31:44.800574+00:00",
+  "updated_at": "2026-07-11T22:46:05.601574+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -1265,63 +1265,24 @@
   "ifdata": [],
   "reclamacoes": [
     {
-      "key": "ame_digital_brasil_ip_(conglomerado)",
-      "label": "AME DIGITAL BRASIL IP (conglomerado) · índice de reclamações",
-      "unit": "pontos",
-      "group": "AME DIGITAL BRASIL IP (conglomerado)",
-      "tier": "benchmark",
-      "dates": [
-        "3Q25"
-      ],
-      "values": [
-        8305.63
-      ]
-    },
-    {
       "key": "banco_c6_(conglomerado)",
       "label": "BANCO C6 (conglomerado) · índice de reclamações",
       "unit": "pontos",
       "group": "BANCO C6 (conglomerado)",
       "tier": "concorrente",
       "dates": [
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        58.44,
+        48.67,
         53.03,
         51.92,
         55.3
-      ]
-    },
-    {
-      "key": "banco_cnh_industrial_capital_s.a_(conglomerado)",
-      "label": "BANCO CNH INDUSTRIAL CAPITAL S.A (conglomerado) · índice de reclamações",
-      "unit": "pontos",
-      "group": "BANCO CNH INDUSTRIAL CAPITAL S.A (conglomerado)",
-      "tier": "benchmark",
-      "dates": [
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        0.0,
-        0.0,
-        0.0
-      ]
-    },
-    {
-      "key": "banco_porto_real_de_invest.s.a_(conglomerado)",
-      "label": "BANCO PORTO REAL DE INVEST.S.A (conglomerado) · índice de reclamações",
-      "unit": "pontos",
-      "group": "BANCO PORTO REAL DE INVEST.S.A (conglomerado)",
-      "tier": "concorrente",
-      "dates": [
-        "4Q25"
-      ],
-      "values": [
-        0.0
       ]
     },
     {
@@ -1331,11 +1292,17 @@
       "group": "BRADESCO (conglomerado)",
       "tier": "benchmark",
       "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        35.89,
+        69.63,
+        60.58,
         51.74,
         43.89,
         48.92
@@ -1348,44 +1315,33 @@
       "group": "BTG PACTUAL/BANCO PAN (conglomerado)",
       "tier": "concorrente",
       "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        36.27,
+        38.32,
+        36.89,
         32.23,
         33.67,
         42.81
       ]
     },
     {
-      "key": "facilita_ip_(conglomerado)",
-      "label": "FACILITA IP (conglomerado) · índice de reclamações",
+      "key": "c6_bank_(conglomerado)",
+      "label": "C6 BANK (conglomerado) · índice de reclamações",
       "unit": "pontos",
-      "group": "FACILITA IP (conglomerado)",
-      "tier": "benchmark",
+      "group": "C6 BANK (conglomerado)",
+      "tier": "concorrente",
       "dates": [
-        "1Q26"
+        "4Q24"
       ],
       "values": [
-        0.0
-      ]
-    },
-    {
-      "key": "itau_(conglomerado)",
-      "label": "ITAU (conglomerado) · índice de reclamações",
-      "unit": "pontos",
-      "group": "ITAU (conglomerado)",
-      "tier": "benchmark",
-      "dates": [
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        45.13,
-        36.24,
-        34.12
+        67.18
       ]
     },
     {
@@ -1395,11 +1351,15 @@
       "group": "NU PAGAMENTOS (conglomerado)",
       "tier": "benchmark",
       "dates": [
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        10.6,
+        12.96,
         12.67,
         12.04,
         10.65
@@ -1412,11 +1372,17 @@
       "group": "PORTO SEGURO (conglomerado)",
       "tier": "concorrente",
       "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        88.59,
+        107.89,
+        138.22,
         108.22,
         139.2,
         150.52
@@ -1429,11 +1395,17 @@
       "group": "SANTANDER (conglomerado)",
       "tier": "benchmark",
       "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
         "3Q25",
         "4Q25",
         "1Q26"
       ],
       "values": [
+        33.65,
+        37.5,
+        29.96,
         29.25,
         27.29,
         34.49
