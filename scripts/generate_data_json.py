@@ -60,6 +60,33 @@ SGS_META = {
 }
 
 
+# Abreviação de mês em pt-BR, escrita à mão (NÃO usar strftime("%b") aqui:
+# é dependente do locale da máquina que roda o script - no runner do
+# GitHub Actions o locale padrão é "C", que gera "May", "Jun", "Jul" em
+# inglês em vez de "mai", "jun", "jul". O parseRoughDate() do index.html
+# só reconhece as abreviações em português (meses = {jan:0, fev:1, ...}),
+# então qualquer coisa em inglês cai no fallback e é lida como se fosse
+# janeiro - o card mostra a data certa mas calcula o "Nd atrás" errado.
+MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun",
+            "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def fmt_mes_ano(d) -> str:
+    return f"{MESES_PT[d.month - 1]}/{d.strftime('%y')}"
+
+
+# Prefixo do key -> métrica, usado como segunda camada de filtro no painel
+# (mesmo padrão de "tier" já usado nas seções de IF.data/Reclamações).
+def _metrica_da_key(key: str) -> str:
+    if key.startswith("saldo_"):
+        return "saldo"
+    if key.startswith("inadimplencia_"):
+        return "inadimplencia"
+    if key.startswith("juros_"):
+        return "juros"
+    return "outro"
+
+
 def build_sgs_block():
     df = get_sgs_cartao(start="2024-01-01")
     df = df.dropna(how="all")
@@ -76,7 +103,9 @@ def build_sgs_block():
             "label": label,
             "unit": unit,
             "type": tipo,
-            "dates": [d.strftime("%b/%y") for d in serie.index],
+            "group": tipo,  # espelha 'type' - reaproveita o mesmo filtro de 2 camadas do IF.data/Reclamações
+            "tier": _metrica_da_key(key),
+            "dates": [fmt_mes_ano(d) for d in serie.index],
             "values": [round(float(v), 2) for v in serie.values],
         })
     return blocks
@@ -115,13 +144,17 @@ def build_ifdata_block(quarters):
 def build_reclamacoes_block(periodos):
     df = get_ranking_reclamacoes_cartao(periodos)
     if df.empty:
-        return []
+        return [], []
 
     col_instituicao = next((c for c in df.columns if "institui" in c.lower()), None)
     col_indice = next((c for c in df.columns if "indice" in c.lower() or "índice" in c.lower()), None)
     if col_instituicao is None or col_indice is None:
         print(f"[aviso] colunas não identificadas no ranking - colunas: {list(df.columns)}")
-        return []
+        return [], []
+
+    # Períodos que de fato vieram com dado (podem ser menos que os
+    # solicitados, se algum trimestre ainda não tiver sido publicado).
+    periodos_ok = sorted(df[["Ano", "Periodo"]].drop_duplicates().itertuples(index=False, name=None))
 
     blocks = []
     for nome, grupo in df.groupby(col_instituicao):
@@ -146,27 +179,27 @@ def build_reclamacoes_block(periodos):
             "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
             "values": [round(float(v), 2) for v in valores],
         })
-    return blocks
+    return blocks, periodos_ok
 
 
-def periodos_reclamacoes_recentes(n: int = 3) -> list[tuple[int, int]]:
-    """Gera os últimos `n` (ano, trimestre) civis, contando o trimestre
-    corrente pra trás. Não considera defasagem de publicação aqui porque
-    o ranking de reclamações costuma sair mais rápido que o IF.data
-    (~30-45d); se um período ainda não estiver publicado, o próprio
-    baixar_ranking_reclamacoes vai logar aviso e ele fica de fora do
-    resultado sem quebrar o pipeline."""
+def periodos_reclamacoes_recentes(n: int = 3, defasagem_dias: int = 45) -> list[tuple[int, int]]:
+    """Gera os últimos `n` (ano, trimestre) que já devem estar publicados,
+    considerando uma defasagem de publicação (chute inicial de 45 dias -
+    ajuste se descobrir o prazo real do Bacen pra esse ranking).
+
+    Importante: NUNCA inclui o trimestre em andamento, e só inclui um
+    trimestre recém-fechado depois que a defasagem tiver passado. Pedir
+    um período que ainda não existe faz o Bacen devolver algo que não é
+    CSV, e isso quebra o parser com erro de delimitador."""
     hoje = date.today()
-    trimestre_atual = (hoje.month - 1) // 3 + 1
-    periodos = []
-    ano, tri = hoje.year, trimestre_atual
-    for _ in range(n):
-        periodos.append((ano, tri))
-        tri -= 1
-        if tri == 0:
-            tri = 4
-            ano -= 1
-    return list(reversed(periodos))
+    candidatos = []
+    for ano in (hoje.year - 1, hoje.year):
+        for tri in (1, 2, 3, 4):
+            fechamento = date(ano, tri * 3, 28)
+            dias_desde_fechamento = (hoje - fechamento).days
+            if dias_desde_fechamento >= defasagem_dias:
+                candidatos.append((ano, tri))
+    return candidatos[-n:]
 
 
 def main():
@@ -209,12 +242,16 @@ def main():
         ifdata_blocks = []
 
     # Últimos trimestres para o ranking de reclamações, calculados
-    # automaticamente em vez de hardcoded.
+    # automaticamente (com defasagem de publicação) em vez de hardcoded.
     periodos_reclamacoes = periodos_reclamacoes_recentes(3)
     try:
-        reclamacoes_blocks = build_reclamacoes_block(periodos_reclamacoes)
+        reclamacoes_blocks, periodos_ok = build_reclamacoes_block(periodos_reclamacoes)
+        if set(periodos_ok) != set(periodos_reclamacoes):
+            faltando = sorted(set(periodos_reclamacoes) - set(periodos_ok))
+            print(f"[aviso] {len(faltando)} período(s) solicitado(s) não retornaram dado: {faltando} "
+                  f"- provavelmente ainda não publicados pelo Bacen")
         print(f"[sucesso] Reclamações processadas com {len(reclamacoes_blocks)} blocos "
-              f"(períodos: {periodos_reclamacoes}).")
+              f"(períodos com dado: {periodos_ok}).")
     except Exception as e:
         print(f"[aviso] Ranking de reclamações falhou ({e})")
         reclamacoes_blocks = []
