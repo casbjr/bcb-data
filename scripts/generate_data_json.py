@@ -182,7 +182,7 @@ def build_reclamacoes_block(periodos):
     return blocks, periodos_ok
 
 
-def periodos_reclamacoes_recentes(n: int = 3, defasagem_dias: int = 45) -> list[tuple[int, int]]:
+def periodos_reclamacoes_recentes(n: int = 6, defasagem_dias: int = 45) -> list[tuple[int, int]]:
     """Gera os últimos `n` (ano, trimestre) que já devem estar publicados,
     considerando uma defasagem de publicação (chute inicial de 45 dias -
     ajuste se descobrir o prazo real do Bacen pra esse ranking).
@@ -190,10 +190,14 @@ def periodos_reclamacoes_recentes(n: int = 3, defasagem_dias: int = 45) -> list[
     Importante: NUNCA inclui o trimestre em andamento, e só inclui um
     trimestre recém-fechado depois que a defasagem tiver passado. Pedir
     um período que ainda não existe faz o Bacen devolver algo que não é
-    CSV, e isso quebra o parser com erro de delimitador."""
+    CSV, e isso quebra o parser com erro de delimitador.
+
+    Olha 3 anos pra trás (não só o atual e o anterior) pra garantir
+    candidatos suficientes mesmo quando n é grande (6) e o ano ainda
+    está no começo."""
     hoje = date.today()
     candidatos = []
-    for ano in (hoje.year - 1, hoje.year):
+    for ano in (hoje.year - 2, hoje.year - 1, hoje.year):
         for tri in (1, 2, 3, 4):
             fechamento = date(ano, tri * 3, 28)
             dias_desde_fechamento = (hoje - fechamento).days
@@ -243,7 +247,7 @@ def main():
 
     # Últimos trimestres para o ranking de reclamações, calculados
     # automaticamente (com defasagem de publicação) em vez de hardcoded.
-    periodos_reclamacoes = periodos_reclamacoes_recentes(3)
+    periodos_reclamacoes = periodos_reclamacoes_recentes(6)
     try:
         reclamacoes_blocks, periodos_ok = build_reclamacoes_block(periodos_reclamacoes)
         if set(periodos_ok) != set(periodos_reclamacoes):
