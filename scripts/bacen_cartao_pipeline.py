@@ -30,6 +30,7 @@ import io
 import zipfile
 import requests
 import os
+from datetime import date
 import pandas as pd
 from bcb import sgs, IFDATA
 
@@ -49,6 +50,17 @@ SGS_SERIES_CARTAO = {
     "inadimplencia_cartao_parcelado_pj": 21105,        # NPL >90d, parcelado PJ
     "juros_cartao_rotativo_pf": 22022,                 # taxa média de juros % a.m., rotativo PF
     "juros_cartao_total_pf": 22024,                    # taxa média de juros % a.m., cartão total PF
+    "juros_cartao_rotativo_pj": 22019,                 # taxa média de juros % a.m., rotativo PJ
+    "saldo_cartao_total_pf": 20590,                    # saldo carteira, cartão total PF (R$ milhões)
+    "saldo_cartao_rotativo_pf": 20572,                 # saldo carteira, rotativo PF (R$ milhões)
+    "saldo_cartao_parcelado_pf": 20588,                # saldo carteira, parcelado PF (R$ milhões)
+    "saldo_cartao_total_pj": 20564,                    # saldo carteira, cartão total PJ (R$ milhões)
+    "saldo_cartao_rotativo_pj": 20561,                 # saldo carteira, rotativo PJ (R$ milhões)
+    "saldo_cartao_parcelado_pj": 20562,                # saldo carteira, parcelado PJ (R$ milhões)
+    "inadimplencia_cartao_parcelado_pf": 21128,        # NPL >90d, parcelado PF (fechava a matriz PF)
+    "juros_cartao_parcelado_pf": 22023,                # taxa média de juros % a.m., parcelado PF
+    "juros_cartao_parcelado_pj": 22020,                # taxa média de juros % a.m., parcelado PJ
+    "saldo_carteira_total_sfn": 20539,                 # saldo total SFN, todos os produtos - denominador pra market share
 }
 
 
@@ -73,6 +85,15 @@ def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
 #                  PortoBank (cartão + crédito ao consumidor, porte médio)
 #   benchmark   -> bancões/gigantes digitais usados como referência
 #                  aspiracional, não como comparação direta de porte
+#
+# ATENÇÃO regex: os termos abaixo são usados como substring (via
+# str.contains), sem borda de palavra. "ITA" por exemplo casa com
+# qualquer nome que contenha essa sequência em qualquer posição, não só
+# "ITAÚ ...". Isso é proposital pra pegar variações de razão social
+# (ITAÚ UNIBANCO, ITAÚ UNIBANCO HOLDING etc.), mas SEMPRE rode
+# listar_instituicoes_alvo() antes de confiar num trimestre novo, pra
+# conferir se não entrou nenhuma instituição indesejada por coincidência
+# de nome.
 BANCOS_ALVO = {
     "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK", "PORTO "], "tier": "concorrente"},
     "pan":       {"termos": ["BANCO PAN"], "tier": "concorrente"},
@@ -125,13 +146,25 @@ def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     return resultado
 
 
-def get_quarters(year: int) -> list[int]:
+def get_quarters(year: int, defasagem_dias: int = 75) -> list[int]:
     """Gera as data-base trimestrais (AAAAMM) de um ano que já devem estar
-    publicadas, considerando a defasagem do IF.data (60-90 dias)."""
-    candidatos = [year * 100 + m for m in (3, 6, 9, 12)]
-    # Filtra apenas os trimestres plausivelmente já publicados.
-    # Ajuste manualmente se rodar fora do fluxo normal do ano.
-    return candidatos
+    publicadas, considerando a defasagem do IF.data (60-90 dias após o
+    fechamento do trimestre).
+
+    Ex.: hoje=10/jul/2026 -> 1T26 fechou 31/mar, +75d = 14/jun -> já
+    publicado, entra na lista. 2T26 fecha 30/jun, +75d = 13/set -> ainda
+    não, fica de fora.
+    """
+    hoje = date.today()
+    candidatos = [(year, m) for m in (3, 6, 9, 12)]
+    publicados = []
+    for ano, mes_fim in candidatos:
+        # data aproximada de fechamento do trimestre
+        fechamento = date(ano, mes_fim, 28)
+        dias_desde_fechamento = (hoje - fechamento).days
+        if dias_desde_fechamento >= defasagem_dias:
+            publicados.append(ano * 100 + mes_fim)
+    return publicados
 
 
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
@@ -177,7 +210,12 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     # IMPORTANTE: confira os valores reais de NomeColuna antes de filtrar
     # em produção - o texto exato pode variar de período para período.
     # Rode: df['NomeColuna'].unique() para ver as opções e ajustar o filtro.
-    mask_cartao = df["NomeColuna"].str.contains("Cart", case=False, na=False)
+    # Usa "Cartão" (com acento) em vez de "Cart" pra evitar casar outras
+    # colunas que por acaso comecem com essas letras.
+    mask_cartao = df["NomeColuna"].str.contains("Cartão", case=False, na=False)
+    if not mask_cartao.any():
+        # fallback pro texto sem acento, caso a API normalize diferente
+        mask_cartao = df["NomeColuna"].str.contains("Cartao", case=False, na=False)
     return df[mask_cartao]
 
 
@@ -288,8 +326,6 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     `df.columns` na primeira vez e ajuste os termos de busca se precisar.
     """
     params = {"ano": ano, "periodicidade": periodicidade, "periodo": periodo, "tipo": tipo}
-    # Parâmetros definidos para o 1º Tri de 2026
-    params = {"ano": 2026,"periodicidade": "TRIMESTRAL","periodo": 1,"tipo": "Bancos e financeiras",}
     resp = requests.get(RANKING_RECLAMACOES_URL, params=params, timeout=60)
     resp.raise_for_status()
 
@@ -297,12 +333,9 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
     # diferente, o pandas geralmente detecta sozinho com engine='python'.
     try:
         df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
-        print(f"[debug] colunas do ranking de reclamações: {list(df.columns)}")
-        print(df.head(5).to_string())  # inspeciona as primeiras linhas sem truncar colunas
-        print("Dados carregados!")
+        print(f"[debug] colunas do ranking de reclamações ({ano}T{periodo}): {list(df.columns)}")
     except Exception:
         df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
-        print(f"Erro ao acessar a API: {resp.status_code} - {resp.reason}")
 
     return df
 
@@ -354,12 +387,14 @@ if __name__ == "__main__":
     sgs_df.to_csv(sgs_path)
     print(f"  -> salvo em {sgs_path} ({len(sgs_df)} linhas)")
 
-    print("\nConferindo nomes de instituições no cadastro IF.data (2026Q1)...")
-    print(listar_instituicoes_alvo(202503))
+    ano_atual = date.today().year
+    quarters_atuais = get_quarters(ano_atual) or get_quarters(ano_atual - 1)[-1:]
 
-    print("\nBaixando IF.data trimestral (Porto, Itaú, Nubank)...")
-    quarters_2026 = [202503]  # adicione 202506, 202509, 202512 conforme forem publicados
-    ifdata_df = get_ifdata_cartao(quarters_2026)
+    print(f"\nConferindo nomes de instituições no cadastro IF.data ({quarters_atuais[-1]})...")
+    print(listar_instituicoes_alvo(quarters_atuais[-1]))
+
+    print(f"\nBaixando IF.data trimestral (Porto, Itaú, Nubank) para {quarters_atuais}...")
+    ifdata_df = get_ifdata_cartao(quarters_atuais)
     if not ifdata_df.empty:
         ifdata_path = os.path.join(OUTPUT_DIR, "ifdata_cartao_trimestral.csv")
         ifdata_df.to_csv(ifdata_path, index=False)
