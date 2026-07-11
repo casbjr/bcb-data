@@ -23,8 +23,11 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements.txt
 
-      - name: Rodar pipeline e gerar data.json
+      - name: Gerar data.json
         run: python scripts/generate_data_json.py
+        env:
+          DEBUG_BCB: "1"
+
 
       - name: Commitar data.json atualizado no main
         uses: stefanzweifel/git-auto-commit-action@v5
