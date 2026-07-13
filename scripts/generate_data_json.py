@@ -40,9 +40,9 @@ SGS_META = {
     "inadimplencia_cartao_rotativo_pf": ("Inadimplência rotativo · PF", "%", "PF"),
     "inadimplencia_cartao_rotativo_pj": ("Inadimplência rotativo · PJ", "%", "PJ"),
     "inadimplencia_cartao_parcelado_pj": ("Inadimplência parcelado · PJ", "%", "PJ"),
-    "juros_cartao_rotativo_pf": ("Juros médios rotativo · PF", "% a.a.", "PF"),
-    "juros_cartao_total_pf": ("Juros médios cartão total · PF", "% a.a.", "PF"),
-    "juros_cartao_rotativo_pj": ("Juros médios rotativo · PJ", "% a.a.", "PJ"),
+    "juros_cartao_rotativo_pf": ("Juros médios rotativo · PF", "% a.m.", "PF"),
+    "juros_cartao_total_pf": ("Juros médios cartão total · PF", "% a.m.", "PF"),
+    "juros_cartao_rotativo_pj": ("Juros médios rotativo · PJ", "% a.m.", "PJ"),
     # ATENÇÃO: não confirmei a unidade exata (R$ mil vs R$ milhões) dessas 4
     # séries de saldo contra o metadado oficial do SGS - rode uma vez e
     # confira a ordem de grandeza do valor bruto antes de confiar no rótulo
@@ -54,8 +54,8 @@ SGS_META = {
     "saldo_cartao_rotativo_pj": ("Saldo carteira rotativo · PJ", "R$ mi", "PJ"),
     "saldo_cartao_parcelado_pj": ("Saldo carteira parcelado · PJ", "R$ mi", "PJ"),
     "inadimplencia_cartao_parcelado_pf": ("Inadimplência parcelado · PF", "%", "PF"),
-    "juros_cartao_parcelado_pf": ("Juros médios parcelado · PF", "% a.a.", "PF"),
-    "juros_cartao_parcelado_pj": ("Juros médios parcelado · PJ", "% a.a.", "PJ"),
+    "juros_cartao_parcelado_pf": ("Juros médios parcelado · PF", "% a.m.", "PF"),
+    "juros_cartao_parcelado_pj": ("Juros médios parcelado · PJ", "% a.m.", "PJ"),
     "saldo_carteira_total_sfn": ("Saldo carteira total · SFN (todos os produtos)", "R$ mi", "Total"),
 }
 
@@ -232,35 +232,44 @@ def main():
         if DEBUG:
             import json as _json
             import requests
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            for anomes in quarters:
-                url = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/IfDataCadastro"
-                # Usa params= em vez de f-string manual - o requests cuida do
-                # urlencode (o espaço em "AnoMes eq 202603" precisa virar %20,
-                # senão o Bacen devolve 400 "URI is malformed").
-                params = {"$filter": f"AnoMes eq {anomes}", "$top": 3, "$format": "json"}
-                try:
-                    r = requests.get(url, headers=headers, params=params, timeout=30)
-                    print(f"[debug-raw] GET {r.url}")
-                    print(f"[debug-raw] status={r.status_code} headers_content_type="
-                          f"{r.headers.get('content-type')}")
-                    print(f"[debug-raw] body[:500]={r.text[:500]!r}")
+            from urllib.parse import quote, quote_plus
 
-                    # Testa a hipótese de wrapper anti-XSSI tipo /*...*/ - se
-                    # for isso, o parse direto falha mas o parse "limpo" funciona.
-                    corpo = r.text.strip()
-                    if corpo.startswith("/*") and corpo.endswith("*/"):
-                        corpo_limpo = corpo[2:-2].strip()
-                        try:
-                            _json.loads(corpo_limpo)
-                            print("[debug-raw] CONFIRMADO: resposta vem embrulhada em /*...*/ "
-                                  "e o conteúdo de dentro É um JSON válido - é isso que está "
-                                  "quebrando o python-bcb 0.3.3.")
-                        except Exception as e3:
-                            print(f"[debug-raw] tinha wrapper /*...*/ mas o conteúdo de dentro "
-                                  f"também não é JSON válido: {e3}")
+            def _testar(label, url):
+                print(f"[debug-raw] tentativa '{label}': GET {url}")
+                try:
+                    r = requests.get(url, headers=headers, timeout=30)
+                    print(f"[debug-raw]   status={r.status_code} content_type={r.headers.get('content-type')}")
+                    print(f"[debug-raw]   body[:300]={r.text[:300]!r}")
+                    if r.status_code == 200:
+                        corpo = r.text.strip()
+                        if corpo.startswith("/*") and corpo.endswith("*/"):
+                            corpo_limpo = corpo[2:-2].strip()
+                            try:
+                                _json.loads(corpo_limpo)
+                                print(f"[debug-raw]   -> 200 OK, JSON embrulhado em /*...*/ "
+                                      f"(conteúdo válido). ESSA é a tentativa que funciona.")
+                            except Exception as e3:
+                                print(f"[debug-raw]   -> 200 mas wrapper /*...*/ com conteúdo inválido: {e3}")
+                        else:
+                            try:
+                                _json.loads(corpo)
+                                print(f"[debug-raw]   -> 200 OK, JSON puro sem wrapper. "
+                                      f"ESSA é a tentativa que funciona.")
+                            except Exception as e3:
+                                print(f"[debug-raw]   -> 200 mas corpo não é JSON reconhecível: {e3}")
                 except Exception as e2:
-                    print(f"[debug-raw] falha até no request cru: {e2}")
+                    print(f"[debug-raw]   falha até no request cru: {e2}")
+
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            base = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata/IfDataCadastro"
+            for anomes in quarters:
+                # Tentativa 1: "$" literal na chave, valor com espaço -> %20
+                _testar("$filter literal + %20", f"{base}?$filter={quote(f'AnoMes eq {anomes}')}&$top=3&$format=json")
+                # Tentativa 2: "$" literal na chave, valor com espaço -> + (quote_plus)
+                _testar("$filter literal + '+'", f"{base}?$filter={quote_plus(f'AnoMes eq {anomes}')}&$top=3&$format=json")
+                # Tentativa 3: sem $filter nenhum - só pra saber se o endpoint em si
+                # responde OK sem filtro (isola se o problema é o $filter ou é mais básico)
+                _testar("sem $filter", f"{base}?$top=3&$format=json")
         ifdata_blocks = []
 
     # Últimos trimestres para o ranking de reclamações, calculados
