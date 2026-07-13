@@ -114,6 +114,8 @@ def build_sgs_block():
 def build_ifdata_block(quarters):
     df = get_ifdata_cartao(quarters)
     if df.empty:
+        print("[aviso] get_ifdata_cartao() voltou vazio - ver aviso acima com o motivo "
+              "(instituição não encontrada, relatório vazio, ou coluna de cartão não identificada)")
         return []
     blocks = []
 
