@@ -13,8 +13,12 @@ Cinco fontes:
      operacional - cartão de crédito costuma liderar as reclamações)
 
 Requer: pip install -r requirements.txt --break-system-packages
-        (pina python-bcb==0.3.3 - última versão estável antes da reescrita
-        0.3.4->0.4.0 de fev-jun/2026; ver requirements.txt)
+        (pina python-bcb==0.3.3 - usado só pro SGS agora. O IF.data foi
+        migrado pra chamar a API OData do Bacen direto via requests, sem
+        passar pela lib - depois de várias rodadas de diagnóstico ficou
+        claro que valia mais a pena ver a resposta crua do servidor do
+        que continuar adivinhando o comportamento interno da lib pra
+        esse serviço específico. Ver _ifdata_get().)
 
 Uso:
   python bacen_cartao_pipeline.py
@@ -27,13 +31,16 @@ Saída (em ./output/):
 """
 
 import io
+import json
 import zipfile
 import requests
 import os
 import time
 from datetime import date
+from urllib.parse import quote
 import pandas as pd
-from bcb import sgs, IFDATA
+from bcb import sgs  # IF.data vai direto via requests (ver _ifdata_get) - a lib
+                      # pinada em 0.3.3 não tá confiável pra esse serviço
 
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -156,12 +163,57 @@ RELATORIO_CARTAO_PF = "11"
 TIPO_INSTITUICAO = 1
 
 
+IFDATA_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata"
+
+
+def _ifdata_get(endpoint: str, filtro: str = None, top: int = None) -> list[dict]:
+    """Chama um endpoint do IFDATA direto via requests, sem passar pelo
+    python-bcb - depois de várias rodadas de diagnóstico (erro de parsing,
+    join de código que não batia, 44 mil linhas suspeitas de filtro
+    ignorado), decidimos parar de adivinhar o comportamento da lib pinada
+    em 0.3.3 e falar com a API na mão, onde dá pra ver a resposta crua.
+
+    ATENÇÃO: a sintaxe exata do $filter combinando múltiplos campos ainda
+    não foi validada contra o servidor real (sem acesso de rede aqui pra
+    testar) - se dar 400, o corpo do erro (que a gente já sabe descascar)
+    vai dizer o que o Bacen não gostou.
+    """
+    url = f"{IFDATA_BASE_URL}/{endpoint}"
+    partes = []
+    if filtro:
+        # "$filter" literal na chave (não deixar o requests re-encodar pra
+        # %24filter, isso já deu 400 "malformed" numa rodada anterior);
+        # só o VALOR do filtro é urlencoded.
+        partes.append(f"$filter={quote(filtro)}")
+    if top:
+        partes.append(f"$top={top}")
+    partes.append("$format=json")
+    url_completa = f"{url}?{'&'.join(partes)}"
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    resp = requests.get(url_completa, headers=headers, timeout=60)
+
+    corpo = resp.text.strip()
+    if corpo.startswith("/*") and corpo.endswith("*/"):
+        corpo = corpo[2:-2].strip()
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"IFDATA {endpoint} devolveu {resp.status_code} pra "
+                            f"GET {url_completa} - corpo: {corpo[:400]}")
+
+    dados = json.loads(corpo)
+    if isinstance(dados, dict):
+        return dados.get("value", [])
+    return dados if isinstance(dados, list) else []
+
+
 def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     """Função de apoio: lista o que o cadastro do Bacen tem para os termos
     de busca, para você confirmar o nome oficial antes de automatizar."""
-    ifdata = IFDATA()
-    cadastro_ep = ifdata.get_endpoint("IfDataCadastro")
-    cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect()
+    registros = _ifdata_get("IfDataCadastro", filtro=f"AnoMes eq {anomes}")
+    cadastro = pd.DataFrame(registros)
+    if cadastro.empty:
+        return cadastro
 
     padrao = "|".join(_todos_termos())
     resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
@@ -196,13 +248,13 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
     pros bancos-alvo (concorrentes diretos + benchmarks), nos trimestres
     informados."""
-    ifdata = IFDATA()
-    valores_ep = ifdata.get_endpoint("IfDataValores")
-    cadastro_ep = ifdata.get_endpoint("IfDataCadastro")
-
     resultados = []
     for anomes in anomes_list:
-        cadastro = cadastro_ep.query().parameters(AnoMes=anomes).collect()
+        registros_cadastro = _ifdata_get("IfDataCadastro", filtro=f"AnoMes eq {anomes}")
+        cadastro = pd.DataFrame(registros_cadastro)
+        if cadastro.empty:
+            print(f"[aviso] cadastro veio vazio pra {anomes}")
+            continue
 
         padrao = "|".join(_todos_termos())
         alvo = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)].copy()
@@ -211,15 +263,9 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             continue
         alvo["tier"] = alvo["NomeInstituicao"].apply(identificar_tier)
 
-        # O cadastro filtra só por AnoMes (sem nível), então "alvo" mistura
-        # instituição individual e conglomerado prudencial - CodInst sozinho
-        # só bate com relatórios de nível individual. Como pedimos o
-        # relatório com TipoInstituicao=1 (conglomerado), o campo CodInst
-        # do lado de "valores" provavelmente corresponde ao
-        # CodConglomeradoPrudencial do cadastro, não ao CodInst dele. Monta
-        # um mapa código -> (nome, tier) usando OS DOIS campos como chave
-        # possível, cobrindo os dois cenários sem precisar adivinhar qual
-        # deles é o certo.
+        # Mapa código -> (nome, tier) usando CodInst E CodConglomeradoPrudencial
+        # como chave possível, cobrindo os dois cenários sem adivinhar qual
+        # dos dois o relatório de valores realmente usa.
         mapa_codigo = {}
         for _, linha in alvo.iterrows():
             info = (linha["NomeInstituicao"], linha["tier"])
@@ -229,23 +275,30 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
                 mapa_codigo[str(linha["CodConglomeradoPrudencial"])] = info
         codigos_alvo = list(mapa_codigo.keys())
 
-        dados = (
-            valores_ep.query()
-            .parameters(AnoMes=anomes, TipoInstituicao=TIPO_INSTITUICAO, Relatorio=RELATORIO_CARTAO_PF)
-            .collect()
-        )
+        # Filtro combinado direto no $filter da API - ainda não validado
+        # contra o servidor real. Relatorio como string entre aspas simples
+        # (convenção OData pra campo texto); se o Bacen tratar como
+        # numérico, o erro 400 vai apontar isso.
+        filtro_valores = (f"AnoMes eq {anomes} and TipoInstituicao eq {TIPO_INSTITUICAO} "
+                           f"and Relatorio eq '{RELATORIO_CARTAO_PF}'")
+        registros_valores = _ifdata_get("IfDataValores", filtro=filtro_valores)
+        dados = pd.DataFrame(registros_valores)
         if dados.empty:
             print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} "
-                  f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3")
+                  f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3, "
+                  f"ou confira se o $filter combinado é aceito pelo Bacen")
             continue
 
         dados_antes = len(dados)
+        print(f"[aviso] {anomes}: colunas retornadas pelo relatório de valores: {list(dados.columns)}")
+        print(f"[aviso] {anomes}: {dados_antes} linha(s) retornadas já com o filtro "
+              f"combinado no servidor (antes tínhamos 44 mil linhas sem filtro nenhum - "
+              f"se esse número ainda estiver na casa dos milhares, o filtro continua não "
+              f"colando; se estiver pequeno/plausível, colou).")
+
         codinst_amostra_dados = sorted(dados["CodInst"].astype(str).dropna().unique().tolist())[:10]
         dados = dados[dados["CodInst"].astype(str).isin(codigos_alvo)].copy()
         if dados.empty:
-            # Mesmo tentando CodInst E CodConglomeradoPrudencial como chave,
-            # nada bateu. Aí sim os dois endpoints usam esquemas de código
-            # realmente incompatíveis - mostra a amostra pra investigar na mão.
             print(f"[aviso] {anomes}: cadastro achou {len(alvo)} instituição(ões) "
                   f"(códigos tentados - CodInst e CodConglomeradoPrudencial: {codigos_alvo[:10]}), "
                   f"relatório {RELATORIO_CARTAO_PF} veio com {dados_antes} linha(s) no total "
