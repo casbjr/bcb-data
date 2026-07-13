@@ -297,19 +297,26 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             continue
 
         dados_antes = len(dados)
-        print(f"[aviso] {anomes}: colunas retornadas pelo relatório de valores: {list(dados.columns)}")
-        print(f"[aviso] {anomes}: {dados_antes} linha(s) retornadas já com o filtro "
-              f"combinado no servidor (antes tínhamos 44 mil linhas sem filtro nenhum - "
-              f"se esse número ainda estiver na casa dos milhares, o filtro continua não "
-              f"colando; se estiver pequeno/plausível, colou).")
+        # Checagem melhor que contar linha: confere se o filtro realmente
+        # restringiu Relatorio/TipoInstituicao (deveria sobrar só 1 valor
+        # em cada, não uma mistura).
+        relatorios_presentes = dados["NumeroRelatorio"].astype(str).unique().tolist() if "NumeroRelatorio" in dados.columns else None
+        tipos_presentes = dados["TipoInstituicao"].astype(str).unique().tolist() if "TipoInstituicao" in dados.columns else None
+        print(f"[aviso] {anomes}: {dados_antes} linha(s) - NumeroRelatorio presente(s): "
+              f"{relatorios_presentes}, TipoInstituicao presente(s): {tipos_presentes} "
+              f"(se cada um tiver só 1 valor, o filtro colou de verdade)")
 
-        codinst_amostra_dados = sorted(dados["CodInst"].astype(str).dropna().unique().tolist())[:10]
+        # Interseção de verdade (não amostra viesada pros menores valores)
+        codinst_no_relatorio = set(dados["CodInst"].astype(str).dropna().unique())
+        intersecao = set(codigos_alvo) & codinst_no_relatorio
         dados = dados[dados["CodInst"].astype(str).isin(codigos_alvo)].copy()
         if dados.empty:
             print(f"[aviso] {anomes}: cadastro achou {len(alvo)} instituição(ões) "
-                  f"(códigos tentados - CodInst e CodConglomeradoPrudencial: {codigos_alvo[:10]}), "
-                  f"relatório {RELATORIO_CARTAO_PF} veio com {dados_antes} linha(s) no total "
-                  f"(amostra de CodInst no relatório: {codinst_amostra_dados}), mas NENHUMA bateu.")
+                  f"(códigos tentados - CodInst e CodConglomeradoPrudencial: {codigos_alvo[:10]}...), "
+                  f"relatório {RELATORIO_CARTAO_PF} tem {len(codinst_no_relatorio)} CodInst único(s) "
+                  f"no total, interseção real: {intersecao or 'VAZIA'}. "
+                  f"Colunas completas do cadastro (não só as que a gente já usa): "
+                  f"{list(cadastro.columns)}")
             continue
         dados["NomeInstituicao"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][0])
         dados["tier"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][1])
