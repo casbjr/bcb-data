@@ -241,6 +241,18 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     if not mask_cartao.any():
         # fallback pro texto sem acento, caso a API normalize diferente
         mask_cartao = df["NomeColuna"].str.contains("Cartao", case=False, na=False)
+    if not mask_cartao.any():
+        # Nem "Cartão" nem "Cartao" bateram - antes isso retornava vazio
+        # SEM avisar por quê, o que é pior que um erro (parece que deu
+        # tudo certo, só que sem carteira nenhuma). Agora mostra as
+        # colunas que o relatório realmente trouxe, pra ajustar o texto
+        # do filtro (ou o RELATORIO_CARTAO_PF / TIPO_INSTITUICAO, se o
+        # relatório 11 nem tiver a modalidade cartão nesse recorte).
+        colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
+        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório "
+              f"{RELATORIO_CARTAO_PF} (TipoInstituicao={TIPO_INSTITUICAO}). "
+              f"Colunas disponíveis ({len(colunas_disponiveis)}): {colunas_disponiveis}")
+        return pd.DataFrame()
     return df[mask_cartao]
 
 
