@@ -256,7 +256,20 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     informados."""
     resultados = []
     for anomes in anomes_list:
-        registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
+        # Testa se o cadastro também aceita TipoInstituicao (só AnoMes
+        # sempre foi usado até agora) - se o CodInst do cadastro nunca bate
+        # com o do relatório, pode ser que sem esse parâmetro a gente
+        # esteja pegando o cadastro em outro nível de numeração.
+        try:
+            registros_cadastro = _ifdata_get(
+                "IfDataCadastro", params={"AnoMes": anomes, "TipoInstituicao": TIPO_INSTITUICAO}
+            )
+            print(f"[aviso] {anomes}: IfDataCadastro ACEITOU TipoInstituicao como parâmetro "
+                  f"({len(registros_cadastro)} registro(s) vieram)")
+        except RuntimeError as e:
+            print(f"[aviso] {anomes}: IfDataCadastro NÃO aceitou TipoInstituicao "
+                  f"({e}) - voltando pra chamada só com AnoMes")
+            registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
         cadastro = pd.DataFrame(registros_cadastro)
         if cadastro.empty:
             print(f"[aviso] cadastro veio vazio pra {anomes}")
@@ -305,9 +318,11 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
         # em cada, não uma mistura).
         relatorios_presentes = dados["NumeroRelatorio"].astype(str).unique().tolist() if "NumeroRelatorio" in dados.columns else None
         tipos_presentes = dados["TipoInstituicao"].astype(str).unique().tolist() if "TipoInstituicao" in dados.columns else None
+        nomes_relatorio = dados["NomeRelatorio"].unique().tolist() if "NomeRelatorio" in dados.columns else None
         print(f"[aviso] {anomes}: {dados_antes} linha(s) - NumeroRelatorio presente(s): "
-              f"{relatorios_presentes}, TipoInstituicao presente(s): {tipos_presentes} "
-              f"(se cada um tiver só 1 valor, o filtro colou de verdade)")
+              f"{relatorios_presentes}, TipoInstituicao presente(s): {tipos_presentes}, "
+              f"NomeRelatorio: {nomes_relatorio} (confirma se o relatório 11 é mesmo "
+              f"sobre carteira de crédito PF, ou se é outra coisa completamente)")
 
         # Interseção de verdade (não amostra viesada pros menores valores)
         codinst_no_relatorio = set(dados["CodInst"].astype(str).dropna().unique())
