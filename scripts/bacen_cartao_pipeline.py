@@ -157,10 +157,8 @@ def identificar_tier(nome_instituicao: str) -> str:
 
 # Relatório 11 = Carteira de crédito ativa Pessoa Física - modalidade e
 # prazo de vencimento. É aqui que aparece a linha de "Cartão de Crédito"
-# por instituição. TipoInstituicao=1 (conglomerado prudencial) costuma
-# ser o nível mais comparável entre bancos grandes.
+# por instituição. 
 RELATORIO_CARTAO_PF = "11"
-TIPO_INSTITUICAO = 2
 
 
 IFDATA_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata"
@@ -250,26 +248,34 @@ def get_quarters(year: int, defasagem_dias: int = 75) -> list[int]:
     return publicados
 
 
+def normalizar_codigo(val) -> str:
+    """
+    Garante que códigos de instituições sejam convertidos para string de forma limpa,
+    removendo sufixos '.0' que o Pandas adiciona ao interpretar colunas numéricas com NaNs.
+    """
+    if pd.isna(val):
+        return ""
+    s = str(val).strip()
+    if s.endswith('.0'):
+        s = s[:-2]
+    return s
+
+
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
     pros bancos-alvo (concorrentes diretos + benchmarks), nos trimestres
     informados."""
     resultados = []
     for anomes in anomes_list:
-        # Testa se o cadastro também aceita TipoInstituicao (só AnoMes
-        # sempre foi usado até agora) - se o CodInst do cadastro nunca bate
-        # com o do relatório, pode ser que sem esse parâmetro a gente
-        # esteja pegando o cadastro em outro nível de numeração.
-        try:
-            registros_cadastro = _ifdata_get(
-                "IfDataCadastro", params={"AnoMes": anomes, "TipoInstituicao": TIPO_INSTITUICAO}
-            )
-            print(f"[aviso] {anomes}: IfDataCadastro ACEITOU TipoInstituicao como parâmetro "
-                  f"({len(registros_cadastro)} registro(s) vieram)")
-        except RuntimeError as e:
-            print(f"[aviso] {anomes}: IfDataCadastro NÃO aceitou TipoInstituicao "
-                  f"({e}) - voltando pra chamada só com AnoMes")
-            registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
+        # --- AJUSTE DINÂMICO DE TIPO_INSTITUICAO ---
+        # Mudança regulatória do BCB:
+        # Até 12/2024: dados de carteira ativa de crédito (R11) estão sob TipoInstituicao=2
+        # A partir de 03/2025: estes dados migraram exclusivamente para TipoInstituicao=1
+        tipo_inst = 1 if anomes >= 202503 else 2
+        print(f"\n[info] Processando período {anomes} utilizando TipoInstituicao={tipo_inst}")
+
+        # Chamamos o cadastro limpo, sem o parâmetro TipoInstituicao que o BC rejeita
+        registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
         cadastro = pd.DataFrame(registros_cadastro)
         if cadastro.empty:
             print(f"[aviso] cadastro veio vazio pra {anomes}")
@@ -282,11 +288,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             continue
         alvo["tier"] = alvo["NomeInstituicao"].apply(identificar_tier)
 
-        # Mapa código -> (nome, tier) usando TODOS os campos de código que
-        # o cadastro tem como chave candidata (CodInst, os dois tipos de
-        # conglomerado, e o CNPJ da instituição líder) - depois de duas
-        # tentativas falhas com só 2 campos, testa todos de uma vez em vez
-        # de continuar adivinhando um por um.
+        # Mapeamento robusto de códigos (evitando o problema de floats com .0 no Pandas)
         campos_codigo_candidatos = ["CodInst", "CodConglomeradoPrudencial",
                                      "CodConglomeradoFinanceiro", "CnpjInstituicaoLider"]
         mapa_codigo = {}
@@ -294,85 +296,61 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             info = (linha["NomeInstituicao"], linha["tier"])
             for campo in campos_codigo_candidatos:
                 if campo in alvo.columns and pd.notna(linha.get(campo)):
-                    mapa_codigo[str(linha[campo])] = info
+                    cod_limpo = normalizar_codigo(linha[campo])
+                    if cod_limpo:
+                        mapa_codigo[cod_limpo] = info
         codigos_alvo = list(mapa_codigo.keys())
 
-        # Sintaxe correta confirmada no catálogo oficial do Bacen: function
-        # import com parâmetros nomeados, não $filter. Relatorio precisa
-        # ir entre aspas simples (campo texto no exemplo oficial), por
-        # isso a formatação f"'{...}'" abaixo.
+        # Chamada dos valores com a query correta e o TipoInstituicao adequado ao período
         registros_valores = _ifdata_get("IfDataValores", params={
             "AnoMes": anomes,
-            "TipoInstituicao": TIPO_INSTITUICAO,
+            "TipoInstituicao": tipo_inst,
             "Relatorio": f"'{RELATORIO_CARTAO_PF}'",
         })
         dados = pd.DataFrame(registros_valores)
         if dados.empty:
             print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} "
-                  f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3")
+                  f"(TipoInstituicao={tipo_inst})")
             continue
 
-        dados_antes = len(dados)
-        # Checagem melhor que contar linha: confere se o filtro realmente
-        # restringiu Relatorio/TipoInstituicao (deveria sobrar só 1 valor
-        # em cada, não uma mistura).
-        relatorios_presentes = dados["NumeroRelatorio"].astype(str).unique().tolist() if "NumeroRelatorio" in dados.columns else None
-        tipos_presentes = dados["TipoInstituicao"].astype(str).unique().tolist() if "TipoInstituicao" in dados.columns else None
-        nomes_relatorio = dados["NomeRelatorio"].unique().tolist() if "NomeRelatorio" in dados.columns else None
-        print(f"[aviso] {anomes}: {dados_antes} linha(s) - NumeroRelatorio presente(s): "
-              f"{relatorios_presentes}, TipoInstituicao presente(s): {tipos_presentes}, "
-              f"NomeRelatorio: {nomes_relatorio} (confirma se o relatório 11 é mesmo "
-              f"sobre carteira de crédito PF, ou se é outra coisa completamente)")
-
-        # Interseção de verdade (não amostra viesada pros menores valores)
-        codinst_no_relatorio = set(dados["CodInst"].astype(str).dropna().unique())
-        intersecao = set(codigos_alvo) & codinst_no_relatorio
-        dados = dados[dados["CodInst"].astype(str).isin(codigos_alvo)].copy()
-        if dados.empty:
-            # Já tentamos 4 campos de código diferentes e nada bateu.
-            # Em vez de continuar chutando campo por campo, despeja a
-            # linha crua COMPLETA de 3 instituições-alvo (todos os
-            # campos, não só os 4 que a gente tenta) pra comparar na mão
-            # com os CodInst que aparecem no relatório de valores.
+        # Normaliza a coluna CodInst antes de filtrar
+        dados["CodInst_limpo"] = dados["CodInst"].apply(normalizar_codigo)
+        
+        # Filtra usando os códigos cadastrados normais
+        dados_filtrados = dados[dados["CodInst_limpo"].isin(mapa_codigo.keys())].copy()
+        
+        if dados_filtrados.empty:
+            # Logs de depuração detalhados se falhar na interseção
+            codinst_no_relatorio = set(dados["CodInst_limpo"].unique())
             amostra_bancos = alvo.head(3).to_dict("records")
             amostra_relatorio = sorted(codinst_no_relatorio)[:5] + sorted(codinst_no_relatorio)[-5:]
-            print(f"[aviso] {anomes}: {len(codigos_alvo)} códigos tentados (4 campos x "
-                  f"{len(alvo)} instituições), interseção com os {len(codinst_no_relatorio)} "
-                  f"CodInst do relatório: VAZIA. Linha crua completa de 3 instituições-alvo: "
-                  f"{amostra_bancos}. Amostra de CodInst do relatório (5 menores + 5 maiores): "
-                  f"{amostra_relatorio}")
+            print(f"[aviso] {anomes}: {len(codigos_alvo)} códigos tentados, mas nenhum bateu "
+                  f"com as {len(codinst_no_relatorio)} instituições do relatório. "
+                  f"Amostra cadastro: {amostra_bancos}. "
+                  f"Amostra relatório: {amostra_relatorio}")
             continue
-        dados["NomeInstituicao"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][0])
-        dados["tier"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][1])
-        dados["AnoMes"] = anomes
-        resultados.append(dados)
+            
+        dados_filtrados["NomeInstituicao"] = dados_filtrados["CodInst_limpo"].map(lambda c: mapa_codigo[c][0])
+        dados_filtrados["tier"] = dados_filtrados["CodInst_limpo"].map(lambda c: mapa_codigo[c][1])
+        dados_filtrados["AnoMes"] = anomes
+        resultados.append(dados_filtrados)
 
     if not resultados:
         return pd.DataFrame()
 
     df = pd.concat(resultados, ignore_index=True)
 
-    # IMPORTANTE: confira os valores reais de NomeColuna antes de filtrar
-    # em produção - o texto exato pode variar de período para período.
-    # Rode: df['NomeColuna'].unique() para ver as opções e ajustar o filtro.
-    # Usa "Cartão" (com acento) em vez de "Cart" pra evitar casar outras
-    # colunas que por acaso comecem com essas letras.
+    # Filtragem das colunas referentes a cartão
     mask_cartao = df["NomeColuna"].str.contains("Cartão", case=False, na=False)
     if not mask_cartao.any():
-        # fallback pro texto sem acento, caso a API normalize diferente
         mask_cartao = df["NomeColuna"].str.contains("Cartao", case=False, na=False)
+        
     if not mask_cartao.any():
-        # Nem "Cartão" nem "Cartao" bateram - antes isso retornava vazio
-        # SEM avisar por quê, o que é pior que um erro (parece que deu
-        # tudo certo, só que sem carteira nenhuma). Agora mostra as
-        # colunas que o relatório realmente trouxe, pra ajustar o texto
-        # do filtro (ou o RELATORIO_CARTAO_PF / TIPO_INSTITUICAO, se o
-        # relatório 11 nem tiver a modalidade cartão nesse recorte).
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
-        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório "
-              f"{RELATORIO_CARTAO_PF} (TipoInstituicao={TIPO_INSTITUICAO}). "
-              f"Colunas disponíveis ({len(colunas_disponiveis)}): {colunas_disponiveis}")
+        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. "
+              f"Colunas disponíveis: {colunas_disponiveis}")
         return pd.DataFrame()
+        
     return df[mask_cartao]
 
 
