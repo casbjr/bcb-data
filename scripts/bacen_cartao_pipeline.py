@@ -222,7 +222,21 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
                   f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3")
             continue
 
+        dados_antes = len(dados)
+        codinst_amostra_dados = sorted(dados["CodInst"].dropna().unique().tolist())[:10]
         dados = dados[dados["CodInst"].isin(codigos_alvo)]
+        if dados.empty:
+            # Achou instituições no cadastro e o relatório de valores não
+            # veio vazio, mas depois de filtrar por CodInst sobrou nada -
+            # os dois endpoints provavelmente usam códigos diferentes pra
+            # instituição (ex.: CodInst do cadastro != CodInst do relatório
+            # de valores). Mostra uma amostra dos dois lados pra comparar.
+            print(f"[aviso] {anomes}: cadastro achou {len(alvo)} instituição(ões) "
+                  f"(CodInst alvo: {codigos_alvo[:10]}), relatório {RELATORIO_CARTAO_PF} veio "
+                  f"com {dados_antes} linha(s) no total (amostra de CodInst no relatório: "
+                  f"{codinst_amostra_dados}), mas NENHUMA bateu - os dois endpoints "
+                  f"provavelmente usam códigos diferentes pra instituição.")
+            continue
         dados = dados.merge(alvo[["CodInst", "NomeInstituicao", "tier"]], on="CodInst", how="left")
         dados["AnoMes"] = anomes
         resultados.append(dados)
