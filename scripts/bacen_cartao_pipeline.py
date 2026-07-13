@@ -160,7 +160,7 @@ def identificar_tier(nome_instituicao: str) -> str:
 # por instituição. TipoInstituicao=1 (conglomerado prudencial) costuma
 # ser o nível mais comparável entre bancos grandes.
 RELATORIO_CARTAO_PF = "11"
-TIPO_INSTITUICAO = 1
+TIPO_INSTITUICAO = 2
 
 
 IFDATA_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata"
