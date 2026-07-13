@@ -210,7 +210,24 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             print(f"[aviso] nenhuma instituição-alvo encontrada no cadastro de {anomes}")
             continue
         alvo["tier"] = alvo["NomeInstituicao"].apply(identificar_tier)
-        codigos_alvo = alvo["CodInst"].unique().tolist()
+
+        # O cadastro filtra só por AnoMes (sem nível), então "alvo" mistura
+        # instituição individual e conglomerado prudencial - CodInst sozinho
+        # só bate com relatórios de nível individual. Como pedimos o
+        # relatório com TipoInstituicao=1 (conglomerado), o campo CodInst
+        # do lado de "valores" provavelmente corresponde ao
+        # CodConglomeradoPrudencial do cadastro, não ao CodInst dele. Monta
+        # um mapa código -> (nome, tier) usando OS DOIS campos como chave
+        # possível, cobrindo os dois cenários sem precisar adivinhar qual
+        # deles é o certo.
+        mapa_codigo = {}
+        for _, linha in alvo.iterrows():
+            info = (linha["NomeInstituicao"], linha["tier"])
+            if pd.notna(linha.get("CodInst")):
+                mapa_codigo[str(linha["CodInst"])] = info
+            if "CodConglomeradoPrudencial" in alvo.columns and pd.notna(linha.get("CodConglomeradoPrudencial")):
+                mapa_codigo[str(linha["CodConglomeradoPrudencial"])] = info
+        codigos_alvo = list(mapa_codigo.keys())
 
         dados = (
             valores_ep.query()
@@ -223,21 +240,19 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             continue
 
         dados_antes = len(dados)
-        codinst_amostra_dados = sorted(dados["CodInst"].dropna().unique().tolist())[:10]
-        dados = dados[dados["CodInst"].isin(codigos_alvo)]
+        codinst_amostra_dados = sorted(dados["CodInst"].astype(str).dropna().unique().tolist())[:10]
+        dados = dados[dados["CodInst"].astype(str).isin(codigos_alvo)].copy()
         if dados.empty:
-            # Achou instituições no cadastro e o relatório de valores não
-            # veio vazio, mas depois de filtrar por CodInst sobrou nada -
-            # os dois endpoints provavelmente usam códigos diferentes pra
-            # instituição (ex.: CodInst do cadastro != CodInst do relatório
-            # de valores). Mostra uma amostra dos dois lados pra comparar.
+            # Mesmo tentando CodInst E CodConglomeradoPrudencial como chave,
+            # nada bateu. Aí sim os dois endpoints usam esquemas de código
+            # realmente incompatíveis - mostra a amostra pra investigar na mão.
             print(f"[aviso] {anomes}: cadastro achou {len(alvo)} instituição(ões) "
-                  f"(CodInst alvo: {codigos_alvo[:10]}), relatório {RELATORIO_CARTAO_PF} veio "
-                  f"com {dados_antes} linha(s) no total (amostra de CodInst no relatório: "
-                  f"{codinst_amostra_dados}), mas NENHUMA bateu - os dois endpoints "
-                  f"provavelmente usam códigos diferentes pra instituição.")
+                  f"(códigos tentados - CodInst e CodConglomeradoPrudencial: {codigos_alvo[:10]}), "
+                  f"relatório {RELATORIO_CARTAO_PF} veio com {dados_antes} linha(s) no total "
+                  f"(amostra de CodInst no relatório: {codinst_amostra_dados}), mas NENHUMA bateu.")
             continue
-        dados = dados.merge(alvo[["CodInst", "NomeInstituicao", "tier"]], on="CodInst", how="left")
+        dados["NomeInstituicao"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][0])
+        dados["tier"] = dados["CodInst"].astype(str).map(lambda c: mapa_codigo[c][1])
         dados["AnoMes"] = anomes
         resultados.append(dados)
 
