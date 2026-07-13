@@ -30,6 +30,7 @@ import io
 import zipfile
 import requests
 import os
+import time
 from datetime import date
 import pandas as pd
 from bcb import sgs, IFDATA
@@ -64,9 +65,31 @@ SGS_SERIES_CARTAO = {
 }
 
 
+def _com_retry(fn, tentativas: int = 3, espera_inicial: float = 5.0, label: str = "chamada"):
+    """Executa fn() com retry e backoff exponencial simples. Uso pontual pra
+    chamadas de rede instáveis (o Bacen tem hora que soluça, tipo o
+    'Download error: code = 22019' que já vimos no SGS) - não é pra
+    mascarar erro de verdade (URL errada, filtro malformado etc.), só pra
+    não deixar uma instabilidade de alguns segundos derrubar a rodada
+    inteira do Actions."""
+    ultimo_erro = None
+    espera = espera_inicial
+    for tentativa in range(1, tentativas + 1):
+        try:
+            return fn()
+        except Exception as e:
+            ultimo_erro = e
+            if tentativa < tentativas:
+                print(f"[aviso] {label} falhou na tentativa {tentativa}/{tentativas} ({e}) "
+                      f"- tentando de novo em {espera:.0f}s")
+                time.sleep(espera)
+                espera *= 2
+    raise ultimo_erro
+
+
 def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
     """Baixa as séries mensais de cartão do SGS a partir de `start` (YYYY-MM-DD)."""
-    df = sgs.get(SGS_SERIES_CARTAO, start=start)
+    df = _com_retry(lambda: sgs.get(SGS_SERIES_CARTAO, start=start), label="SGS")
     df.index.name = "data"
     return df
 
