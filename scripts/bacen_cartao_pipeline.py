@@ -166,29 +166,35 @@ TIPO_INSTITUICAO = 1
 IFDATA_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/odata"
 
 
-def _ifdata_get(endpoint: str, filtro: str = None, top: int = None) -> list[dict]:
+def _ifdata_get(endpoint: str, params: dict = None, top: int = None) -> list[dict]:
     """Chama um endpoint do IFDATA direto via requests, sem passar pelo
-    python-bcb - depois de várias rodadas de diagnóstico (erro de parsing,
-    join de código que não batia, 44 mil linhas suspeitas de filtro
-    ignorado), decidimos parar de adivinhar o comportamento da lib pinada
-    em 0.3.3 e falar com a API na mão, onde dá pra ver a resposta crua.
+    python-bcb.
 
-    ATENÇÃO: a sintaxe exata do $filter combinando múltiplos campos ainda
-    não foi validada contra o servidor real (sem acesso de rede aqui pra
-    testar) - se dar 400, o corpo do erro (que a gente já sabe descascar)
-    vai dizer o que o Bacen não gostou.
+    IMPORTANTE: o catálogo oficial do Bacen mostra que endpoints como
+    IfDataValores são "function imports" OData, não entidades filtráveis
+    com $filter - os parâmetros vão como assinatura de função na própria
+    URL, com os valores passados via query string prefixados de "@":
+
+      IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)
+        ?@AnoMes=202303&@TipoInstituicao=1&@Relatorio='1'&$format=json
+
+    Isso explica por que TODAS as tentativas com $filter davam "URI is
+    malformed" de forma idêntica, mesmo sem filtro nenhum - a sintaxe
+    inteira da URL tava errada, não só o conteúdo do filtro.
     """
-    url = f"{IFDATA_BASE_URL}/{endpoint}"
-    partes = []
-    if filtro:
-        # "$filter" literal na chave (não deixar o requests re-encodar pra
-        # %24filter, isso já deu 400 "malformed" numa rodada anterior);
-        # só o VALOR do filtro é urlencoded.
-        partes.append(f"$filter={quote(filtro)}")
+    if params:
+        assinatura = ",".join(f"{k}=@{k}" for k in params)
+        query_valores = "&".join(f"@{k}={quote(str(v), safe=chr(39))}" for k, v in params.items())
+        url = f"{IFDATA_BASE_URL}/{endpoint}({assinatura})?{query_valores}"
+    else:
+        url = f"{IFDATA_BASE_URL}/{endpoint}?"
+
+    extras = []
     if top:
-        partes.append(f"$top={top}")
-    partes.append("$format=json")
-    url_completa = f"{url}?{'&'.join(partes)}"
+        extras.append(f"$top={top}")
+    extras.append("$format=json")
+    separador = "" if url.endswith("?") else "&"
+    url_completa = url + separador + "&".join(extras)
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     resp = requests.get(url_completa, headers=headers, timeout=60)
@@ -210,7 +216,7 @@ def _ifdata_get(endpoint: str, filtro: str = None, top: int = None) -> list[dict
 def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     """Função de apoio: lista o que o cadastro do Bacen tem para os termos
     de busca, para você confirmar o nome oficial antes de automatizar."""
-    registros = _ifdata_get("IfDataCadastro", filtro=f"AnoMes eq {anomes}")
+    registros = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
     cadastro = pd.DataFrame(registros)
     if cadastro.empty:
         return cadastro
@@ -250,7 +256,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     informados."""
     resultados = []
     for anomes in anomes_list:
-        registros_cadastro = _ifdata_get("IfDataCadastro", filtro=f"AnoMes eq {anomes}")
+        registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
         cadastro = pd.DataFrame(registros_cadastro)
         if cadastro.empty:
             print(f"[aviso] cadastro veio vazio pra {anomes}")
@@ -275,18 +281,19 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
                 mapa_codigo[str(linha["CodConglomeradoPrudencial"])] = info
         codigos_alvo = list(mapa_codigo.keys())
 
-        # Filtro combinado direto no $filter da API - ainda não validado
-        # contra o servidor real. Relatorio como string entre aspas simples
-        # (convenção OData pra campo texto); se o Bacen tratar como
-        # numérico, o erro 400 vai apontar isso.
-        filtro_valores = (f"AnoMes eq {anomes} and TipoInstituicao eq {TIPO_INSTITUICAO} "
-                           f"and Relatorio eq '{RELATORIO_CARTAO_PF}'")
-        registros_valores = _ifdata_get("IfDataValores", filtro=filtro_valores)
+        # Sintaxe correta confirmada no catálogo oficial do Bacen: function
+        # import com parâmetros nomeados, não $filter. Relatorio precisa
+        # ir entre aspas simples (campo texto no exemplo oficial), por
+        # isso a formatação f"'{...}'" abaixo.
+        registros_valores = _ifdata_get("IfDataValores", params={
+            "AnoMes": anomes,
+            "TipoInstituicao": TIPO_INSTITUICAO,
+            "Relatorio": f"'{RELATORIO_CARTAO_PF}'",
+        })
         dados = pd.DataFrame(registros_valores)
         if dados.empty:
             print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} "
-                  f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3, "
-                  f"ou confira se o $filter combinado é aceito pelo Bacen")
+                  f"(TipoInstituicao={TIPO_INSTITUICAO}) - tente TipoInstituicao=2 ou 3")
             continue
 
         dados_antes = len(dados)
