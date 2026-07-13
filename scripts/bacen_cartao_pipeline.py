@@ -323,8 +323,10 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
         # Normaliza a coluna CodInst antes de realizar a comparação
         dados["CodInst_limpo"] = dados["CodInst"].apply(normalizar_codigo)
         
-        # Filtra os dados com base nos códigos normalizados mapeados
-        dados_filtrados = dados[dados["CodInst_limpo"].isin(mapa_codigo.keys())].copy()
+        # --- CORREÇÃO DA PEGADINHA DO PANDAS ---
+        # Convertemos explicitamente as chaves para um set() para evitar que o Pandas
+        # bugue silenciosamente ao receber um objeto 'dict_keys'.
+        dados_filtrados = dados[dados["CodInst_limpo"].isin(set(mapa_codigo.keys()))].copy()
         
         if dados_filtrados.empty:
             # Despeja logs de depuração detalhados se falhar na interseção
@@ -400,7 +402,7 @@ def carregar_scr_data_cartao(pasta_extraida: str, ano_mes: str) -> pd.DataFrame:
     em produção: ver link em SCR_DATA_METODOLOGIA_URL abaixo.
     """
     candidatos = [f for f in os.listdir(pasta_extraida) if ano_mes in f and f.endswith(".csv")]
-    if not candidatos:
+    if not candidates:
         raise FileNotFoundError(f"Nenhum CSV encontrado para {ano_mes} em {pasta_extraida}")
 
     caminho = os.path.join(pasta_extraida, candidatos[0])
@@ -450,7 +452,7 @@ def get_meios_pagamento_cartao(formato: str = "json") -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 #
 # Cartão de crédito costuma ser a categoria #1 de reclamação nesse ranking,
-# então mesmo não sendo um dado "de cartão" em si, é um proxy forte de
+# então mesmo não sendo um dado "de cartão" in si, é um proxy forte de
 # qualidade operacional em cartão, comparável entre Porto/Itaú/Nubank.
 
 RANKING_RECLAMACOES_URL = "https://www3.bcb.gov.br/rdrweb/rest/ext/ranking/arquivo"
