@@ -15,10 +15,7 @@ Cinco fontes:
 Requer: pip install -r requirements.txt --break-system-packages
         (pina python-bcb==0.3.3 - usado só pro SGS agora. O IF.data foi
         migrado pra chamar a API OData do Bacen direto via requests, sem
-        passar pela lib - depois de várias rodadas de diagnóstico ficou
-        claro que valia mais a pena ver a resposta crua do servidor do
-        que continuar adivinhando o comportamento interno da lib pra
-        esse serviço específico. Ver _ifdata_get().)
+        passar pela lib. Ver _ifdata_get().)
 
 Uso:
   python bacen_cartao_pipeline.py
@@ -26,8 +23,6 @@ Uso:
 Saída (em ./output/):
   sgs_cartao_mensal.csv
   ifdata_cartao_trimestral.csv
-  scr_data_cartao_<ano_mes>.csv      (opcional, desligado por padrão - ver fim do arquivo)
-  meios_pagamento_trimestral.csv     (opcional, desligado por padrão - ver fim do arquivo)
 """
 
 import io
@@ -39,8 +34,7 @@ import time
 from datetime import date
 from urllib.parse import quote
 import pandas as pd
-from bcb import sgs  # IF.data vai direto via requests (ver _ifdata_get) - a lib
-                      # pinada em 0.3.3 não tá confiável pra esse serviço
+from bcb import sgs
 
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -65,20 +59,14 @@ SGS_SERIES_CARTAO = {
     "saldo_cartao_total_pj": 20564,                    # saldo carteira, cartão total PJ (R$ milhões)
     "saldo_cartao_rotativo_pj": 20561,                 # saldo carteira, rotativo PJ (R$ milhões)
     "saldo_cartao_parcelado_pj": 20562,                # saldo carteira, parcelado PJ (R$ milhões)
-    "inadimplencia_cartao_parcelado_pf": 21128,        # NPL >90d, parcelado PF (fechava a matriz PF)
+    "inadimplencia_cartao_parcelado_pf": 21128,        # NPL >90d, parcelado PF
     "juros_cartao_parcelado_pf": 22023,                # taxa média de juros % a.m., parcelado PF
     "juros_cartao_parcelado_pj": 22020,                # taxa média de juros % a.m., parcelado PJ
-    "saldo_carteira_total_sfn": 20539,                 # saldo total SFN, todos os produtos - denominador pra market share
+    "saldo_carteira_total_sfn": 20539,                 # saldo total SFN
 }
 
 
 def _com_retry(fn, tentativas: int = 3, espera_inicial: float = 5.0, label: str = "chamada"):
-    """Executa fn() com retry e backoff exponencial simples. Uso pontual pra
-    chamadas de rede instáveis (o Bacen tem hora que soluça, tipo o
-    'Download error: code = 22019' que já vimos no SGS) - não é pra
-    mascarar erro de verdade (URL errada, filtro malformado etc.), só pra
-    não deixar uma instabilidade de alguns segundos derrubar a rodada
-    inteira do Actions."""
     ultimo_erro = None
     espera = espera_inicial
     for tentativa in range(1, tentativas + 1):
@@ -95,44 +83,22 @@ def _com_retry(fn, tentativas: int = 3, espera_inicial: float = 5.0, label: str 
 
 
 def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
-    """Baixa as séries mensais de cartão do SGS a partir de `start` (YYYY-MM-DD)."""
     df = _com_retry(lambda: sgs.get(SGS_SERIES_CARTAO, start=start), label="SGS")
     df.index.name = "data"
     return df
 
 
 # ---------------------------------------------------------------------------
-# 2. IF.data - dados trimestrais por instituição (Porto, Itaú, Nubank)
+# 2. IF.data - dados trimestrais por instituição
 # ---------------------------------------------------------------------------
 
-# Termos de busca no cadastro do IF.data. Ajuste se o nome oficial
-# divergir (ex.: PortoBank pode estar registrado sob outra razão social
-# - confirme rodando `listar_instituicoes_alvo()` abaixo antes de usar
-# em produção).
-#
-# "tier":
-#   concorrente -> concorrentes diretos de porte/perfil parecido com o
-#                  PortoBank (cartão + crédito ao consumidor, porte médio)
-#   benchmark   -> bancões/gigantes digitais usados como referência
-#                  aspiracional, não como comparação direta de porte
-#
-# ATENÇÃO regex: os termos abaixo são usados como substring (via
-# str.contains), sem borda de palavra. Por isso os termos precisam ser
-# específicos o suficiente pra não bater com palavras que só contêm a
-# mesma sequência de letras no meio - já vimos isso acontecer na prática:
-# "ITA" batia com "FACILITA IP", "CAPITAL" e "DIGITAL" (todas contêm
-# "ita" no meio da palavra); "PORTO " batia com "BANCO PORTO REAL DE
-# INVEST.S.A", um banco completamente diferente da Porto Seguro. Prefira
-# sempre termos de 2+ palavras ou nomes completos em vez de fragmentos
-# curtos. SEMPRE rode listar_instituicoes_alvo() antes de confiar num
-# trimestre novo, pra conferir se não entrou nada indesejado.
 BANCOS_ALVO = {
     "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK"], "tier": "concorrente"},
     "pan":       {"termos": ["BANCO PAN"], "tier": "concorrente"},
     "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA"], "tier": "concorrente"},
     "inter":     {"termos": ["BANCO INTER"], "tier": "concorrente"},
     "c6":        {"termos": ["C6 BANK", "BANCO C6"], "tier": "concorrente"},
-    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO"], "tier": "benchmark"},  # nome completo evita falso-positivo em palavras como "capital", "digital", "facilita"
+    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO"], "tier": "benchmark"},
     "bradesco":  {"termos": ["BRADESCO"], "tier": "benchmark"},
     "santander": {"termos": ["SANTANDER"], "tier": "benchmark"},
     "btg":       {"termos": ["BTG PACTUAL"], "tier": "benchmark"},
@@ -145,19 +111,13 @@ def _todos_termos() -> list[str]:
 
 
 def identificar_tier(nome_instituicao: str) -> str:
-    """Dado um NomeInstituicao do cadastro do Bacen, identifica em qual
-    banco-alvo ele bateu e retorna o tier ('concorrente' ou 'benchmark').
-    Retorna 'outro' se não bater com nenhum termo (não deveria acontecer
-    se a linha já passou pelo filtro de padrao)."""
     nome_upper = str(nome_instituicao).upper()
     for banco in BANCOS_ALVO.values():
         if any(termo.upper() in nome_upper for termo in banco["termos"]):
             return banco["tier"]
     return "outro"
 
-# Relatório 11 = Carteira de crédito ativa Pessoa Física - modalidade e
-# prazo de vencimento. É aqui que aparece a linha de "Cartão de Crédito"
-# por instituição.
+
 RELATORIO_CARTAO_PF = "11"
 
 
@@ -165,21 +125,7 @@ IFDATA_BASE_URL = "https://olinda.bcb.gov.br/olinda/servico/IFDATA/versao/v1/oda
 
 
 def _ifdata_get(endpoint: str, params: dict = None, top: int = None) -> list[dict]:
-    """Chama um endpoint do IFDATA direto via requests, sem passar pelo
-    python-bcb.
-
-    IMPORTANTE: o catálogo oficial do Bacen mostra que endpoints como
-    IfDataValores são "function imports" OData, não entidades filtráveis
-    com $filter - os parâmetros vão como assinatura de função na própria
-    URL, com os valores passados via query string prefixados de "@":
-
-      IfDataValores(AnoMes=@AnoMes,TipoInstituicao=@TipoInstituicao,Relatorio=@Relatorio)
-        ?@AnoMes=202303&@TipoInstituicao=1&@Relatorio='1'&$format=json
-
-    Isso explica por que TODAS as tentativas com $filter davam "URI is
-    malformed" de forma idêntica, mesmo sem filtro nenhum - a sintaxe
-    inteira da URL tava errada, não só o conteúdo do filtro.
-    """
+    """Chama um endpoint do IFDATA tratando paginação dinâmica através do link de controle OData."""
     if params:
         assinatura = ",".join(f"{k}=@{k}" for k in params)
         query_valores = "&".join(f"@{k}={quote(str(v), safe=chr(39))}" for k, v in params.items())
@@ -195,52 +141,56 @@ def _ifdata_get(endpoint: str, params: dict = None, top: int = None) -> list[dic
     url_completa = url + separador + "&".join(extras)
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    resp = requests.get(url_completa, headers=headers, timeout=60)
+    
+    resultados = []
+    url_atual = url_completa
+    
+    # Loop de Paginação OData (Olinda BCB)
+    while url_atual:
+        resp = requests.get(url_atual, headers=headers, timeout=60)
+        
+        corpo = resp.text.strip()
+        if corpo.startswith("/*") and corpo.endswith("*/"):
+            corpo = corpo[2:-2].strip()
 
-    corpo = resp.text.strip()
-    if corpo.startswith("/*") and corpo.endswith("*/"):
-        corpo = corpo[2:-2].strip()
+        if resp.status_code != 200:
+            raise RuntimeError(f"IFDATA {endpoint} devolveu {resp.status_code} pra "
+                                f"GET {url_atual} - corpo: {corpo[:400]}")
 
-    if resp.status_code != 200:
-        raise RuntimeError(f"IFDATA {endpoint} devolveu {resp.status_code} pra "
-                            f"GET {url_completa} - corpo: {corpo[:400]}")
+        dados = json.loads(corpo)
+        if isinstance(dados, dict):
+            resultados.extend(dados.get("value", []))
+            # Captura o link da próxima página gerado pelo servidor do BCB
+            url_atual = dados.get("@odata.nextLink")
+        else:
+            if isinstance(dados, list):
+                resultados.extend(dados)
+            break
+            
+    return resultados
 
-    dados = json.loads(corpo)
-    if isinstance(dados, dict):
-        return dados.get("value", [])
-    return dados if isinstance(dados, list) else []
 
-
-def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
-    """Função de apoio: lista o que o cadastro do Bacen tem para os termos
-    de busca, para você confirmar o nome oficial antes de automatizar."""
-    registros = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
-    cadastro = pd.DataFrame(registros)
-    if cadastro.empty:
-        return cadastro
-
-    padrao = "|".join(_todos_termos())
-    resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
-        ["CodInst", "NomeInstituicao", "Td", "CodConglomeradoPrudencial"]
-    ].copy()
-    resultado["tier"] = resultado["NomeInstituicao"].apply(identificar_tier)
-    return resultado
+def normalizar_codigo(val) -> str:
+    """
+    Garante que códigos de instituições sejam convertidos para string de 8 dígitos.
+    Remove letras (C, F, etc.) e sufixos decimais do pandas.
+    """
+    if pd.isna(val):
+        return ""
+    s = str(val).strip()
+    if s.endswith('.0'):
+        s = s[:-2]
+    s_numerico = "".join(filter(str.isdigit, s))
+    if s_numerico:
+        return s_numerico.zfill(8)
+    return ""
 
 
 def get_quarters(year: int, defasagem_dias: int = 75) -> list[int]:
-    """Gera as data-base trimestrais (AAAAMM) de um ano que já devem estar
-    publicadas, considerando a defasagem do IF.data (60-90 dias após o
-    fechamento do trimestre).
-
-    Ex.: hoje=10/jul/2026 -> 1T26 fechou 31/mar, +75d = 14/jun -> já
-    publicado, entra na lista. 2T26 fecha 30/jun, +75d = 13/set -> ainda
-    não, fica de fora.
-    """
     hoje = date.today()
     candidatos = [(year, m) for m in (3, 6, 9, 12)]
     publicados = []
     for ano, mes_fim in candidatos:
-        # data aproximada de fechamento do trimestre
         fechamento = date(ano, mes_fim, 28)
         dias_desde_fechamento = (hoje - fechamento).days
         if dias_desde_fechamento >= defasagem_dias:
@@ -248,40 +198,16 @@ def get_quarters(year: int, defasagem_dias: int = 75) -> list[int]:
     return publicados
 
 
-def normalizar_codigo(val) -> str:
-    """
-    Garante que códigos de instituições sejam convertidos para string de 8 dígitos.
-    Remove prefixos de texto (ex: 'C0080075' -> '00080075') e sufixos '.0' de floats.
-    """
-    if pd.isna(val):
-        return ""
-    s = str(val).strip()
-    if s.endswith('.0'):
-        s = s[:-2]
-    
-    # Mantém apenas os caracteres numéricos (remove 'C', 'F', etc.)
-    s_numerico = "".join(filter(str.isdigit, s))
-    
-    # O padrão do Banco Central no relatório de valores (CodInst) é sempre de 8 dígitos
-    if s_numerico:
-        return s_numerico.zfill(8)
-    return ""
-
-
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
-    pros bancos-alvo (concorrentes diretos + benchmarks), nos trimestres
-    informados."""
+    pros bancos-alvo, nos trimestres informados."""
     resultados = []
     for anomes in anomes_list:
-        # --- AJUSTE DINÂMICO DE TIPO_INSTITUICAO ---
-        # Mudança regulatória do BCB:
-        # Até 12/2024: dados de carteira ativa de crédito (R11) estão sob TipoInstituicao=2
-        # A partir de 03/2025: estes dados migraram exclusivamente para TipoInstituicao=1
+        # Lógica de migração regulatória (Até 12/2024 = Tipo 2, Pós 03/2025 = Tipo 1)
         tipo_inst = 1 if anomes >= 202503 else 2
         print(f"\n[info] Processando período {anomes} utilizando TipoInstituicao={tipo_inst}")
 
-        # Chamamos o cadastro limpo, sem o parâmetro TipoInstituicao que o BC rejeita no OData
+        # Cadastro limpo apenas com AnoMes
         registros_cadastro = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
         cadastro = pd.DataFrame(registros_cadastro)
         if cadastro.empty:
@@ -295,9 +221,8 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             continue
         alvo["tier"] = alvo["NomeInstituicao"].apply(identificar_tier)
 
-        # Mapeamento robusto de códigos (evitando o problema de floats com .0 no Pandas)
-        campos_codigo_candidatos = ["CodInst", "CodConglomeradoPrudencial",
-                                     "CodConglomeradoFinanceiro", "CnpjInstituicaoLider"]
+        # Mapeamento robusto de códigos candidatos
+        campos_codigo_candidatos = ["CodInst", "CodConglomeradoPrudencial", "CodConglomeradoFinanceiro", "CnpjInstituicaoLider"]
         mapa_codigo = {}
         for _, linha in alvo.iterrows():
             info = (linha["NomeInstituicao"], linha["tier"])
@@ -308,7 +233,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
                         mapa_codigo[cod_limpo] = info
         codigos_alvo = list(mapa_codigo.keys())
 
-        # Chamada dos valores com a query correta e o TipoInstituicao adequado ao período
+        # Chamamos os valores contornando a limitação de paginação do Banco Central
         registros_valores = _ifdata_get("IfDataValores", params={
             "AnoMes": anomes,
             "TipoInstituicao": tipo_inst,
@@ -316,27 +241,21 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
         })
         dados = pd.DataFrame(registros_valores)
         if dados.empty:
-            print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} "
-                  f"(TipoInstituicao={tipo_inst})")
+            print(f"[aviso] relatório {RELATORIO_CARTAO_PF} vazio para {anomes} (TipoInstituicao={tipo_inst})")
             continue
 
-        # Normaliza a coluna CodInst antes de realizar a comparação
+        # Normaliza CodInst do relatório antes de filtrar
         dados["CodInst_limpo"] = dados["CodInst"].apply(normalizar_codigo)
         
-        # --- CORREÇÃO DA PEGADINHA DO PANDAS ---
-        # Convertemos explicitamente as chaves para um set() para evitar que o Pandas
-        # bugue silenciosamente ao receber um objeto 'dict_keys'.
+        # Filtramos explicitamente usando um set()
         dados_filtrados = dados[dados["CodInst_limpo"].isin(set(mapa_codigo.keys()))].copy()
         
         if dados_filtrados.empty:
-            # Despeja logs de depuração detalhados se falhar na interseção
             codinst_no_relatorio = set(dados["CodInst_limpo"].unique())
             amostra_bancos = alvo.head(3).to_dict("records")
-            amostra_relatorio = sorted(codinst_no_relatorio)[:5] + sorted(codinst_no_relatorio)[-5:]
+            amostra_relatorio = sorted(codinst_no_relatorio)[:5]
             print(f"[aviso] {anomes}: {len(codigos_alvo)} códigos tentados, mas nenhum bateu "
-                  f"com as {len(codinst_no_relatorio)} instituições do relatório. "
-                  f"Amostra cadastro: {amostra_bancos}. "
-                  f"Amostra relatório: {amostra_relatorio}")
+                  f"com as {len(codinst_no_relatorio)} do relatório. Amostra relatório: {amostra_relatorio}")
             continue
             
         dados_filtrados["NomeInstituicao"] = dados_filtrados["CodInst_limpo"].map(lambda c: mapa_codigo[c][0])
@@ -349,180 +268,17 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
 
     df = pd.concat(resultados, ignore_index=True)
 
-    # Filtragem das colunas referentes a cartão
     mask_cartao = df["NomeColuna"].str.contains("Cartão", case=False, na=False)
     if not mask_cartao.any():
         mask_cartao = df["NomeColuna"].str.contains("Cartao", case=False, na=False)
         
     if not mask_cartao.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
-        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. "
-              f"Colunas disponíveis: {colunas_disponiveis}")
+        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. Colunas: {colunas_disponiveis}")
         return pd.DataFrame()
         
     return df[mask_cartao]
 
-
-# ---------------------------------------------------------------------------
-# 3. SCR.data - mercado todo, mensal, MUITO granular (não isola banco por nome)
-# ---------------------------------------------------------------------------
-#
-# Não é uma API tipo SGS/IF.data - é um arquivo .ZIP por ano (todos os meses
-# dentro), baixado direto do site do Bacen. Dentro tem ~700 mil séries:
-# cruza modalidade de crédito x UF x PF/PJ x renda x indexador, etc.
-# Detalha por SEGMENTO da instituição (S1, S2...), não pelo nome do banco -
-# ou seja, não dá pra isolar Porto/Itaú/Nubank aqui.
-
-SCR_DATA_URL_TEMPLATE = "https://www.bcb.gov.br/pda/desig/scrdata_{ano}.zip"
-
-
-def baixar_scr_data(ano: int, pasta_destino: str = None) -> str:
-    """Baixa e extrai o ZIP anual do SCR.data. Retorna o caminho da pasta
-    extraída. Atenção: arquivo grande (pode levar minutos)."""
-    pasta_destino = pasta_destino or os.path.join(OUTPUT_DIR, f"scr_data_{ano}")
-    os.makedirs(pasta_destino, exist_ok=True)
-
-    url = SCR_DATA_URL_TEMPLATE.format(ano=ano)
-    print(f"Baixando {url} ...")
-    resp = requests.get(url, timeout=300)
-    resp.raise_for_status()
-
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-        z.extractall(pasta_destino)
-
-    return pasta_destino
-
-
-def carregar_scr_data_cartao(pasta_extraida: str, ano_mes: str) -> pd.DataFrame:
-    """Lê o CSV de um mês específico (formato AAAAMM) dentro da pasta
-    extraída e filtra as linhas de modalidade relacionadas a cartão.
-
-    O nome exato do arquivo e das colunas pode variar por versão do
-    SCR.data (v1 vs v2) - confira a Metodologia (Versão 2) antes de usar
-    em produção: ver link em SCR_DATA_METODOLOGIA_URL abaixo.
-    """
-    candidatos = [f for f in os.listdir(pasta_extraida) if ano_mes in f and f.endswith(".csv")]
-    if not candidates:
-        raise FileNotFoundError(f"Nenhum CSV encontrado para {ano_mes} em {pasta_extraida}")
-
-    caminho = os.path.join(pasta_extraida, candidatos[0])
-    # SCR.data costuma vir com separador ';' e encoding latin-1
-    df = pd.read_csv(caminho, sep=";", encoding="latin-1", low_memory=False)
-
-    # Ajuste o nome da coluna de modalidade conforme o cabeçalho real
-    # (confira df.columns antes de rodar em produção).
-    col_modalidade = next((c for c in df.columns if "modalidade" in c.lower()), None)
-    if col_modalidade is None:
-        print("[aviso] coluna de modalidade não encontrada automaticamente - "
-              "inspecione df.columns manualmente")
-        return df
-
-    return df[df[col_modalidade].str.contains("Cart", case=False, na=False)]
-
-
-SCR_DATA_METODOLOGIA_URL = "https://www.bcb.gov.br/pda/desig/metodologia_versao2.pdf"
-
-
-# ---------------------------------------------------------------------------
-# 4. Meios de Pagamentos - volumetria/quantidade de transações com cartão
-#    (trimestral, nível mercado - bom complemento, não isola banco)
-# ---------------------------------------------------------------------------
-
-MPV_ENDPOINT = (
-    "https://olinda.bcb.gov.br/olinda/servico/MPV_DadosAbertos/versao/v1/odata/"
-    "MeiosdePagamentosTrimestralDA"
-)
-
-
-def get_meios_pagamento_cartao(formato: str = "json") -> pd.DataFrame:
-    """Puxa a série trimestral de Meios de Pagamento (cartões de crédito e
-    débito, boletos, TED/transferências). Disponível 90 dias após o
-    fechamento do trimestre. Ajuste $filter conforme os campos retornados -
-    rode uma vez sem filtro para inspecionar as colunas disponíveis."""
-    url = f"{MPV_ENDPOINT}?$format={formato}"
-    resp = requests.get(url, timeout=120)
-    resp.raise_for_status()
-    data = resp.json()
-    registros = data.get("value", data)
-    return pd.DataFrame(registros)
-
-
-# ---------------------------------------------------------------------------
-# 5. Ranking de Reclamações - por instituição, trimestral
-# ---------------------------------------------------------------------------
-#
-# Cartão de crédito costuma ser a categoria #1 de reclamação nesse ranking,
-# então mesmo não sendo um dado "de cartão" in si, é um proxy forte de
-# qualidade operacional em cartão, comparável entre Porto/Itaú/Nubank.
-
-RANKING_RECLAMACOES_URL = "https://www3.bcb.gov.br/rdrweb/rest/ext/ranking/arquivo"
-
-
-def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRIMESTRAL",
-                                 tipo: str = "Bancos e financeiras") -> pd.DataFrame:
-    """Baixa o CSV do ranking de reclamações de um trimestre específico.
-
-    periodo: 1 a 4 (trimestre) quando periodicidade='TRIMESTRAL'.
-
-    Atenção: não consegui validar os nomes exatos das colunas contra o
-    arquivo real (sem rede no ambiente onde escrevi isso) - o código abaixo
-    detecta as colunas por palavra-chave ao invés de nome fixo. Rode
-    `df.columns` na primeira vez e ajuste os termos de busca se precisar.
-    """
-    params = {"ano": ano, "periodicidade": periodicidade, "periodo": periodo, "tipo": tipo}
-    resp = requests.get(RANKING_RECLAMACOES_URL, params=params, timeout=60)
-    resp.raise_for_status()
-
-    # Arquivos do Bacen costumam vir em latin-1 com separador ';' - se vier
-    # diferente, o pandas geralmente detecta sozinho com engine='python'.
-    try:
-        df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
-        print(f"[debug] colunas do ranking de reclamações ({ano}T{periodo}): {list(df.columns)}")
-    except Exception:
-        df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
-
-    return df
-
-
-def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFrame:
-    """Busca o ranking de reclamações para Porto, Itaú e Nubank nos
-    (ano, trimestre) informados, ex.: [(2025, 3), (2025, 4), (2026, 1)]."""
-    resultados = []
-    for ano, periodo in periodos:
-        try:
-            df = baixar_ranking_reclamacoes(ano, periodo)
-        except Exception as e:
-            print(f"[aviso] falha ao baixar ranking {ano}T{periodo}: {e}")
-            continue
-
-        col_instituicao = next((c for c in df.columns if "institui" in c.lower()), None)
-        if col_instituicao is None:
-            print(f"[aviso] coluna de instituição não encontrada em {ano}T{periodo} - "
-                  f"colunas disponíveis: {list(df.columns)}")
-            continue
-
-        padrao = "|".join(_todos_termos())
-        alvo = df[df[col_instituicao].astype(str).str.contains(padrao, case=False, na=False)].copy()
-        if alvo.empty:
-            nomes_unicos = df[col_instituicao].dropna().unique().tolist()
-            print(f"[aviso] nenhum banco-alvo bateu em {ano}T{periodo} (coluna='{col_instituicao}') - "
-                  f"nomes disponíveis nesse arquivo: {nomes_unicos}")
-            continue
-
-        alvo["tier"] = alvo[col_instituicao].apply(identificar_tier)
-        alvo["Ano"] = ano
-        alvo["Periodo"] = periodo
-        alvo["AnoPeriodo"] = f"{ano}T{periodo}"
-        resultados.append(alvo)
-
-    if not resultados:
-        return pd.DataFrame()
-    return pd.concat(resultados, ignore_index=True)
-
-
-# ---------------------------------------------------------------------------
-# Execução
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print("Baixando séries SGS (nacional, mensal)...")
@@ -531,32 +287,15 @@ if __name__ == "__main__":
     sgs_df.to_csv(sgs_path)
     print(f"  -> salvo em {sgs_path} ({len(sgs_df)} linhas)")
 
+    # Puxa os trimestres disponíveis dinamicamente
     ano_atual = date.today().year
-    quarters_atuais = get_quarters(ano_atual) or get_quarters(ano_atual - 1)[-1:]
-
-    print(f"\nConferindo nomes de instituições no cadastro IF.data ({quarters_atuais[-1]})...")
-    print(listar_instituicoes_alvo(quarters_atuais[-1]))
-
-    print(f"\nBaixando IF.data trimestral (Porto, Itaú, Nubank) para {quarters_atuais}...")
-    # ifdata_df = get_ifdata_cartao(quarters_atuais)
-    ifdata_df = get_ifdata_cartao([202512])
+    quarters_para_buscar = get_quarters(ano_atual) or get_quarters(ano_atual - 1)[-1:]
+    
+    print(f"\nBaixando IF.data trimestral para {quarters_para_buscar}...")
+    ifdata_df = get_ifdata_cartao(quarters_para_buscar)
     if not ifdata_df.empty:
         ifdata_path = os.path.join(OUTPUT_DIR, "ifdata_cartao_trimestral.csv")
         ifdata_df.to_csv(ifdata_path, index=False)
         print(f"  -> salvo em {ifdata_path} ({len(ifdata_df)} linhas)")
     else:
-        print("  -> nenhum dado retornado, revise BANCOS_ALVO / TIPO_INSTITUICAO / Relatorio")
-
-    # --- Fontes extras (mercado todo, não isolam banco por nome) ---
-    # Desligadas por padrão (SCR.data é arquivo grande e demorado).
-    # Ative manualmente quando precisar:
-    #
-    # print("\nBaixando SCR.data 2026 (arquivo grande, pode demorar)...")
-    # pasta_scr = baixar_scr_data(2026)
-    # scr_cartao = carregar_scr_data_cartao(pasta_scr, ano_mes="202603")
-    # scr_cartao.to_csv(os.path.join(OUTPUT_DIR, "scr_data_cartao_202603.csv"), index=False)
-    #
-    # print("\nBaixando Meios de Pagamentos trimestral...")
-    # mpv_df = get_meios_pagamento_cartao()
-    # mpv_df.to_csv(os.path.join(OUTPUT_DIR, "meios_pagamento_trimestral.csv"), index=False)
-    # print(f"  -> {len(mpv_df)} linhas - inspecione as colunas pra filtrar cartão de crédito")
+        print("  -> nenhum dado retornado, revise as configurações.")
