@@ -538,7 +538,8 @@ if __name__ == "__main__":
     print(listar_instituicoes_alvo(quarters_atuais[-1]))
 
     print(f"\nBaixando IF.data trimestral (Porto, Itaú, Nubank) para {quarters_atuais}...")
-    ifdata_df = get_ifdata_cartao(quarters_atuais)
+    # ifdata_df = get_ifdata_cartao(quarters_atuais)
+    ifdata_df = get_ifdata_cartao([202512])
     if not ifdata_df.empty:
         ifdata_path = os.path.join(OUTPUT_DIR, "ifdata_cartao_trimestral.csv")
         ifdata_df.to_csv(ifdata_path, index=False)
