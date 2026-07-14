@@ -40,13 +40,9 @@ SGS_META = {
     "inadimplencia_cartao_rotativo_pf": ("Inadimplência rotativo · PF", "%", "PF"),
     "inadimplencia_cartao_rotativo_pj": ("Inadimplência rotativo · PJ", "%", "PJ"),
     "inadimplencia_cartao_parcelado_pj": ("Inadimplência parcelado · PJ", "%", "PJ"),
-    "juros_cartao_rotativo_pf": ("Juros médios rotativo · PF", "% a.m.", "PF"),
-    "juros_cartao_total_pf": ("Juros médios cartão total · PF", "% a.m.", "PF"),
-    "juros_cartao_rotativo_pj": ("Juros médios rotativo · PJ", "% a.m.", "PJ"),
-    # ATENÇÃO: não confirmei a unidade exata (R$ mil vs R$ milhões) dessas 4
-    # séries de saldo contra o metadado oficial do SGS - rode uma vez e
-    # confira a ordem de grandeza do valor bruto antes de confiar no rótulo
-    # "R$ mi" abaixo (ajuste o rótulo, ou aplique /1000 aqui se necessário).
+    "juros_cartao_rotativo_pf": ("Juros médios rotativo · PF", "% a.a.", "PF"),
+    "juros_cartao_total_pf": ("Juros médios cartão total · PF", "% a.a.", "PF"),
+    "juros_cartao_rotativo_pj": ("Juros médios rotativo · PJ", "% a.a.", "PJ"),
     "saldo_cartao_total_pf": ("Saldo carteira cartão total · PF", "R$ mi", "PF"),
     "saldo_cartao_rotativo_pf": ("Saldo carteira rotativo · PF", "R$ mi", "PF"),
     "saldo_cartao_parcelado_pf": ("Saldo carteira parcelado · PF", "R$ mi", "PF"),
@@ -54,8 +50,8 @@ SGS_META = {
     "saldo_cartao_rotativo_pj": ("Saldo carteira rotativo · PJ", "R$ mi", "PJ"),
     "saldo_cartao_parcelado_pj": ("Saldo carteira parcelado · PJ", "R$ mi", "PJ"),
     "inadimplencia_cartao_parcelado_pf": ("Inadimplência parcelado · PF", "%", "PF"),
-    "juros_cartao_parcelado_pf": ("Juros médios parcelado · PF", "% a.m.", "PF"),
-    "juros_cartao_parcelado_pj": ("Juros médios parcelado · PJ", "% a.m.", "PJ"),
+    "juros_cartao_parcelado_pf": ("Juros médios parcelado · PF", "% a.a.", "PF"),
+    "juros_cartao_parcelado_pj": ("Juros médios parcelado · PJ", "% a.a.", "PJ"),
     "saldo_carteira_total_sfn": ("Saldo carteira total · SFN (todos os produtos)", "R$ mi", "Total"),
 }
 
