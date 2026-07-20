@@ -8,6 +8,7 @@ Roda a partir da raiz do repo (é o que o workflow do GitHub Actions faz).
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone, date
 from pathlib import Path
@@ -23,6 +24,7 @@ from bacen_cartao_pipeline import (
     get_quarters,
     SGS_SERIES_CARTAO,
     BANCOS_ALVO,
+    _padrao_termos,
 )
 
 OUT_PATH = Path(__file__).parent.parent / "docs" / "data.json"
@@ -93,11 +95,14 @@ def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
     """Como identificar_tier(), mas retorna TODAS as chaves de BANCOS_ALVO que
     baterem no nome (em vez de só a primeira) - necessário pra detectar o
     caso de conglomerados que juntam dois bancos-alvo numa linha só
-    (ex.: BTG Pactual/Banco Pan) sem perder um deles silenciosamente."""
+    (ex.: BTG Pactual/Banco Pan) sem perder um deles silenciosamente.
+    Usa a mesma busca com fronteira de palavra de identificar_tier() -
+    necessário porque o Ranking de Reclamações usa nomes curtos ("INTER",
+    "BV", "ITAU") que só são seguros como termo de busca com \\b."""
     nome_upper = str(nome_instituicao).upper()
     return sorted(
         chave for chave, banco in BANCOS_ALVO.items()
-        if any(termo.upper() in nome_upper for termo in banco["termos"])
+        if re.search(_padrao_termos(banco["termos"]), nome_upper)
     )
 
 

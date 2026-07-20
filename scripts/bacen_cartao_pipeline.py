@@ -27,6 +27,7 @@ Saída (em ./output/):
 
 import io
 import json
+import re
 import zipfile
 import requests
 import os
@@ -92,13 +93,20 @@ def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
 # 2. IF.data - dados trimestrais por instituição
 # ---------------------------------------------------------------------------
 
+# O IF.data usa a razão social completa (ex.: "ITAÚ UNIBANCO S.A."), mas o
+# Ranking de Reclamações usa nomes curtos/de marca pro mesmo banco (ex.: só
+# "ITAU", só "INTER") - por isso cada banco-alvo tem termos das duas
+# convenções. Termos curtos ("INTER", "BV", "ITAU") só são seguros porque a
+# busca usa fronteira de palavra (ver _padrao_termos) - sem isso, "INTER"
+# bateria como substring em "BANCO INTERMEDIUM", um banco de verdade e
+# completamente diferente do Inter.
 BANCOS_ALVO = {
     "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK"], "tier": "concorrente"},
     "pan":       {"termos": ["BANCO PAN"], "tier": "concorrente"},
-    "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA"], "tier": "concorrente"},
-    "inter":     {"termos": ["BANCO INTER"], "tier": "concorrente"},
+    "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA", "BV"], "tier": "concorrente"},
+    "inter":     {"termos": ["BANCO INTER", "INTER"], "tier": "concorrente"},
     "c6":        {"termos": ["C6 BANK", "BANCO C6"], "tier": "concorrente"},
-    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO"], "tier": "benchmark"},
+    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO", "ITAÚ", "ITAU"], "tier": "benchmark"},
     "bradesco":  {"termos": ["BRADESCO"], "tier": "benchmark"},
     "santander": {"termos": ["SANTANDER"], "tier": "benchmark"},
     "btg":       {"termos": ["BTG PACTUAL"], "tier": "benchmark"},
@@ -110,10 +118,17 @@ def _todos_termos() -> list[str]:
     return [t for banco in BANCOS_ALVO.values() for t in banco["termos"]]
 
 
+def _padrao_termos(termos: list[str]) -> str:
+    """Monta um padrão regex com fronteira de palavra (\\b) pra cada termo -
+    evita que termos curtos batam como substring dentro de nomes não
+    relacionados (ver comentário acima de BANCOS_ALVO)."""
+    return "|".join(rf"\b{re.escape(t)}\b" for t in termos)
+
+
 def identificar_tier(nome_instituicao: str) -> str:
     nome_upper = str(nome_instituicao).upper()
     for banco in BANCOS_ALVO.values():
-        if any(termo.upper() in nome_upper for termo in banco["termos"]):
+        if re.search(_padrao_termos(banco["termos"]), nome_upper):
             return banco["tier"]
     return "outro"
 
@@ -214,7 +229,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             print(f"[aviso] cadastro veio vazio pra {anomes}")
             continue
 
-        padrao = "|".join(_todos_termos())
+        padrao = _padrao_termos(_todos_termos())
         alvo = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)].copy()
         if alvo.empty:
             print(f"[aviso] nenhuma instituição-alvo encontrada no cadastro de {anomes}")
@@ -288,7 +303,7 @@ def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     if cadastro.empty:
         return cadastro
 
-    padrao = "|".join(_todos_termos())
+    padrao = _padrao_termos(_todos_termos())
     resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
         ["CodInst", "NomeInstituicao", "Td", "CodConglomeradoPrudencial"]
     ].copy()
@@ -348,7 +363,7 @@ def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFr
                   f"colunas disponíveis: {list(df.columns)}")
             continue
 
-        padrao = "|".join(_todos_termos())
+        padrao = _padrao_termos(_todos_termos())
         alvo = df[df[col_instituicao].astype(str).str.contains(padrao, case=False, na=False)].copy()
         if alvo.empty:
             nomes_unicos = df[col_instituicao].dropna().unique().tolist()
