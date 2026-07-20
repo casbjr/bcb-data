@@ -133,6 +133,18 @@ def identificar_tier(nome_instituicao: str) -> str:
     return "outro"
 
 
+def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
+    """Como identificar_tier(), mas retorna TODAS as chaves de BANCOS_ALVO que
+    baterem no nome (em vez de só a primeira) - necessário pra detectar o
+    caso de conglomerados que juntam dois bancos-alvo numa linha só (ex.:
+    BTG Pactual/Banco Pan) sem perder um deles silenciosamente."""
+    nome_upper = str(nome_instituicao).upper()
+    return sorted(
+        chave for chave, banco in BANCOS_ALVO.items()
+        if re.search(_padrao_termos(banco["termos"]), nome_upper)
+    )
+
+
 RELATORIO_CARTAO_PF = "11"
 
 
@@ -328,6 +340,14 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
 
     periodo: 1 a 4 (trimestre) quando periodicidade='TRIMESTRAL'.
 
+    tipo: categoria pedida ao Bacen. "Bancos e financeiras" é a única
+    testada até agora - a página pública do Bacen tem uma visão que mistura
+    bancos com instituições de pagamento (PicPay, Neon, Mercado Pago...),
+    que provavelmente é outra categoria (ou um "Consolidado"). Se topo do
+    Top 15 gerado aqui não bater com o topo do site pra um trimestre, é
+    esse o motivo mais provável - vale confirmar o nome exato da categoria
+    direto na página antes de mudar esse default.
+
     Atenção: as colunas são detectadas por palavra-chave ao invés de nome
     fixo, já que o layout exato pode variar entre trimestres.
     """
@@ -347,8 +367,11 @@ def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRI
 
 
 def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFrame:
-    """Busca o ranking de reclamações para os bancos-alvo nos
-    (ano, trimestre) informados, ex.: [(2025, 3), (2025, 4), (2026, 1)]."""
+    """Busca o ranking de reclamações COMPLETO (todas as instituições da
+    categoria, não só os bancos-alvo) nos (ano, trimestre) informados, ex.:
+    [(2025, 3), (2025, 4), (2026, 1)]. A seleção de quem entra no Top N e a
+    identificação dos bancos-alvo (pra tier/destaque) ficam por conta de
+    quem consome esse retorno - aqui só busca e empilha os trimestres."""
     resultados = []
     for ano, periodo in periodos:
         try:
@@ -363,19 +386,15 @@ def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFr
                   f"colunas disponíveis: {list(df.columns)}")
             continue
 
-        padrao = _padrao_termos(_todos_termos())
-        alvo = df[df[col_instituicao].astype(str).str.contains(padrao, case=False, na=False)].copy()
-        if alvo.empty:
-            nomes_unicos = df[col_instituicao].dropna().unique().tolist()
-            print(f"[aviso] nenhum banco-alvo bateu em {ano}T{periodo} (coluna='{col_instituicao}') - "
-                  f"nomes disponíveis nesse arquivo: {nomes_unicos}")
+        if df.empty:
+            print(f"[aviso] ranking veio vazio em {ano}T{periodo}")
             continue
 
-        alvo["tier"] = alvo[col_instituicao].apply(identificar_tier)
-        alvo["Ano"] = ano
-        alvo["Periodo"] = periodo
-        alvo["AnoPeriodo"] = f"{ano}T{periodo}"
-        resultados.append(alvo)
+        df = df.copy()
+        df["Ano"] = ano
+        df["Periodo"] = periodo
+        df["AnoPeriodo"] = f"{ano}T{periodo}"
+        resultados.append(df)
 
     if not resultados:
         return pd.DataFrame()
