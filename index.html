@@ -130,6 +130,10 @@
   .card:hover{ background:var(--panel-hover); }
   .card.trend-up{ border-left-color:var(--up); }
   .card.trend-down{ border-left-color:var(--down); }
+  .card.card-destaque{
+    border-left-color:var(--up); border-left-width:4px;
+    background:rgba(217,88,74,0.06);
+  }
 
   .card-top{
     display:flex; justify-content:space-between; align-items:flex-start;
@@ -202,7 +206,7 @@
 </div>
 
 <div id="reclamacoesSection">
-  <div class="section-label">Ranking de Reclamações — Top 10 por índice, trimestral</div>
+  <div class="section-label">Ranking de Reclamações — Top 15 (Bacen) + Porto em destaque, trimestral</div>
   <div class="chips tier" id="reclamacoesTierChips"></div>
   <div class="chips" id="reclamacoesChips"></div>
   <div class="grid" id="reclamacoesGrid"></div>
@@ -235,16 +239,18 @@
          "values": [4.1, 4.3, 4.5, 4.6] }
      ],
      "reclamacoes": [
-       { "key": "porto", "label": "Porto · índice de reclamações", "rank": 8,
-         "unit": "pontos", "group": "Porto", "tier": "concorrente",
+       { "key": "porto", "label": "Porto · índice de reclamações", "rank": 18,
+         "unit": "pontos", "group": "Porto", "tier": "concorrente", "destaque": true,
          "dates": ["2025T3","2025T4","2026T1"], "values": [18.4, 21.2, 19.8] }
      ]
    }
    "type" (PF/PJ/Total) e "group" (nome do banco) alimentam os chips de
-   filtro no topo de cada seção do painel. Em "reclamacoes", "rank" (1 =
-   pior índice) é gerado pelo generate_data_json.py e usado pra ordenar o
-   Top 10 dos cards - se ausente (ex.: MOCK sem o campo), o render() cai
-   pra ordenar pelo último valor da série.
+   filtro no topo de cada seção do painel. Em "reclamacoes", o generate_data_json.py
+   monta o Top 15 oficial (todas as instituições da categoria, não só as
+   monitoradas) e sempre inclui a Porto mesmo se a posição real dela ("rank",
+   1 = pior índice) ficar fora do Top 15 - nesse caso "destaque":true pinta o
+   card dela diferente. Se "rank" estiver ausente (ex.: MOCK sem o campo), o
+   render() cai pra ordenar pelo último valor da série.
    ========================================================================= */
 
 const MOCK = {
@@ -286,7 +292,7 @@ const MOCK = {
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[58,63,68,73] },
   ],
   reclamacoes: [
-    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", rank:8,
+    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", rank:18, destaque:true,
       dates:["3Q25","4Q25","1Q26"], values:[18.4,21.2,19.8] },
     { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente", rank:7,
       dates:["3Q25","4Q25","1Q26"], values:[22.6,20.1,23.4] },
@@ -361,7 +367,7 @@ function makeCard(series, staleDays){
   const isStale = ageDays !== null && ageDays > staleDays;
 
   const card = document.createElement('div');
-  card.className = `card trend-${dir === 'flat' ? '' : dir}`.trim();
+  card.className = `card trend-${dir === 'flat' ? '' : dir}${series.destaque ? ' card-destaque' : ''}`.trim();
 
   const badgeClass = dir === 'up' ? 'up' : (dir === 'down' ? 'down' : 'flat');
   const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '·');
@@ -489,7 +495,7 @@ function setupFilters(chipsEl, gridEl, allSeries, groupKey, staleDays){
 }
 
 const TIER_LABELS = {
-  concorrente: 'Concorrentes diretos', benchmark: 'Benchmark', conglomerado: 'Conglomerado',
+  concorrente: 'Concorrentes diretos', benchmark: 'Benchmark', conglomerado: 'Conglomerado', mercado: 'Mercado',
   saldo: 'Saldo', inadimplencia: 'Inadimplência', juros: 'Juros'
 };
 

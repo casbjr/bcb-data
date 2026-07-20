@@ -24,7 +24,7 @@ from bacen_cartao_pipeline import (
     get_quarters,
     SGS_SERIES_CARTAO,
     BANCOS_ALVO,
-    _padrao_termos,
+    identificar_bancos_alvo,
 )
 
 OUT_PATH = Path(__file__).parent.parent / "docs" / "data.json"
@@ -89,21 +89,6 @@ NOME_CANONICO = {
     "btg": "BTG Pactual",
     "nubank": "Nubank",
 }
-
-
-def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
-    """Como identificar_tier(), mas retorna TODAS as chaves de BANCOS_ALVO que
-    baterem no nome (em vez de só a primeira) - necessário pra detectar o
-    caso de conglomerados que juntam dois bancos-alvo numa linha só
-    (ex.: BTG Pactual/Banco Pan) sem perder um deles silenciosamente.
-    Usa a mesma busca com fronteira de palavra de identificar_tier() -
-    necessário porque o Ranking de Reclamações usa nomes curtos ("INTER",
-    "BV", "ITAU") que só são seguros como termo de busca com \\b."""
-    nome_upper = str(nome_instituicao).upper()
-    return sorted(
-        chave for chave, banco in BANCOS_ALVO.items()
-        if re.search(_padrao_termos(banco["termos"]), nome_upper)
-    )
 
 
 # Prefixo do key -> métrica, usado como segunda camada de filtro no painel
@@ -174,13 +159,38 @@ def build_ifdata_block(quarters):
     return blocks
 
 
-def build_reclamacoes_block(periodos):
+def _slug(texto: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", str(texto).strip().lower()).strip("_")
+
+
+def _normalizar_cnpj(val) -> str:
+    """Como normalizar_codigo() do bacen_cartao_pipeline, mas pra CNPJ (14
+    dígitos): remove o sufixo '.0' que o pandas cria quando lê a coluna
+    como número, e preserva zeros à esquerda."""
+    if pd.isna(val):
+        return ""
+    s = str(val).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    digitos = "".join(filter(str.isdigit, s))
+    return digitos.zfill(14) if digitos else ""
+
+
+TOP_N_RECLAMACOES = 15
+
+
+def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
+    """Monta o Top N (por padrão 15, como a página pública do Bacen) do
+    Ranking de Reclamações, calculado sobre TODAS as instituições da
+    categoria pesquisada (não só os bancos-alvo) - mais a Porto sempre
+    incluída, com a posição real dela, mesmo se ficar fora do Top N."""
     df = get_ranking_reclamacoes_cartao(periodos)
     if df.empty:
         return [], []
 
     col_instituicao = next((c for c in df.columns if "institui" in c.lower()), None)
     col_indice = next((c for c in df.columns if "indice" in c.lower() or "índice" in c.lower()), None)
+    col_cnpj = next((c for c in df.columns if "cnpj" in c.lower()), None)
     if col_instituicao is None or col_indice is None:
         print(f"[aviso] colunas não identificadas no ranking - colunas: {list(df.columns)}")
         return [], []
@@ -188,21 +198,9 @@ def build_reclamacoes_block(periodos):
     # Períodos que de fato vieram com dado (podem ser menos que os
     # solicitados, se algum trimestre ainda não tiver sido publicado).
     periodos_ok = sorted(df[["Ano", "Periodo"]].drop_duplicates().itertuples(index=False, name=None))
+    ultimo_periodo = max(periodos_ok) if periodos_ok else None
 
-    # Agrupa por chave canônica do banco-alvo (não pelo nome literal do
-    # Bacen) - o mesmo banco pode aparecer com grafias diferentes em
-    # trimestres diferentes (ex.: "C6 BANK (conglomerado)" vs "BANCO C6
-    # (conglomerado)"), e agrupar pelo texto puro fragmentava a série em
-    # cards duplicados em vez de um histórico contínuo por banco.
     df = df.copy()
-    df["bancos_chave"] = df[col_instituicao].apply(identificar_bancos_alvo)
-    df["chave_grupo"] = df["bancos_chave"].apply(lambda l: "+".join(l) if l else None)
-    sem_chave = df[df["chave_grupo"].isna()]
-    if not sem_chave.empty:
-        print(f"[aviso] {len(sem_chave)} linha(s) do ranking bateram no filtro de termos mas não "
-              f"resolveram pra nenhuma chave de BANCOS_ALVO: "
-              f"{sem_chave[col_instituicao].unique().tolist()}")
-    df = df.dropna(subset=["chave_grupo"])
 
     # Converte strings BR para float americano; valores que não derem pra
     # converter são DESCARTADOS (não viram 0 - um índice de reclamações "0"
@@ -218,51 +216,85 @@ def build_reclamacoes_block(periodos):
               f"{list(zip(invalidos[col_instituicao], invalidos[col_indice]))}")
     df = df.dropna(subset=["valor_num"])
 
-    blocks = []
+    # Chave de agrupamento: CNPJ da instituição, quando disponível - é o
+    # identificador estável de verdade. O nome que o Bacen publica pra
+    # mesma instituição pode mudar de um trimestre pro outro (ex.: "BANCO
+    # C6" virou "C6 BANK") e agrupar pelo texto puro fragmentava a série em
+    # cards duplicados em vez de um histórico contínuo. Cai pro nome
+    # (maiúsculo) só se o CNPJ vier vazio pra alguma linha.
+    if col_cnpj:
+        cnpj_limpo = df[col_cnpj].apply(_normalizar_cnpj)
+        nome_upper = df[col_instituicao].astype(str).str.upper().str.strip()
+        df["chave_grupo"] = cnpj_limpo.where(cnpj_limpo != "", nome_upper)
+    else:
+        df["chave_grupo"] = df[col_instituicao].astype(str).str.upper().str.strip()
+
+    grupos = {}
     for chave_grupo, grupo in df.groupby("chave_grupo"):
         grupo = grupo.sort_values(["Ano", "Periodo"])
-        chaves = chave_grupo.split("+")
+        nome_recente = str(grupo[col_instituicao].iloc[-1]).strip()
+        bancos_alvo_aqui = identificar_bancos_alvo(nome_recente)
 
-        if len(chaves) > 1:
+        if len(bancos_alvo_aqui) > 1:
             # Conglomerado que junta mais de um banco-alvo numa linha só
             # (ex.: BTG comprou o Pan e o Bacen passou a publicar os dois
             # como uma entidade). Mantemos como um card único em vez de
             # silenciosamente atribuir a linha inteira ao tier de só um
             # dos dois bancos.
-            label_base = " / ".join(NOME_CANONICO.get(c, c) for c in chaves)
+            label = " / ".join(NOME_CANONICO.get(c, c) for c in bancos_alvo_aqui)
             tier = "conglomerado"
+        elif bancos_alvo_aqui:
+            label = NOME_CANONICO.get(bancos_alvo_aqui[0], bancos_alvo_aqui[0])
+            tier = BANCOS_ALVO[bancos_alvo_aqui[0]]["tier"]
         else:
-            label_base = NOME_CANONICO.get(chaves[0], chaves[0])
-            tier = BANCOS_ALVO[chaves[0]]["tier"]
+            label = nome_recente
+            tier = "mercado"
 
-        ultimo_valor = float(grupo["valor_num"].iloc[-1])
-        blocks.append({
-            "key": chave_grupo,
-            "label": f"{label_base} · índice de reclamações",
+        linha_atual = grupo[(grupo["Ano"] == ultimo_periodo[0]) & (grupo["Periodo"] == ultimo_periodo[1])] \
+            if ultimo_periodo else grupo.iloc[0:0]
+
+        grupos[chave_grupo] = {
+            "key": "+".join(bancos_alvo_aqui) if bancos_alvo_aqui else _slug(label),
+            "label": f"{label} · índice de reclamações",
             "unit": "pontos",
-            "group": label_base,
+            "group": label,
             "tier": tier,
             "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
             "values": [round(float(v), 2) for v in grupo["valor_num"]],
-            "_ultimo_valor": ultimo_valor,
-        })
+            "_bancos_alvo": bancos_alvo_aqui,
+            "_valor_periodo_atual": float(linha_atual["valor_num"].iloc[0]) if not linha_atual.empty else None,
+        }
 
-    # Ranking Top 10: ordena pelo índice mais recente, do pior (maior) pro
-    # melhor (menor) - é assim que o ranking de reclamações do Bacen é lido
-    # convencionalmente - e numera a posição de cada card.
-    blocks.sort(key=lambda b: b["_ultimo_valor"], reverse=True)
-    for i, block in enumerate(blocks, start=1):
-        block["rank"] = i
-        del block["_ultimo_valor"]
+    # Posição "oficial": só entram instituições com dado no período mais
+    # recente (mesma base de comparação que a página do Bacen usa pra
+    # calcular a "Posição" do trimestre atual) - do pior (maior) índice
+    # pro melhor (menor).
+    rankeaveis = [b for b in grupos.values() if b["_valor_periodo_atual"] is not None]
+    rankeaveis.sort(key=lambda b: b["_valor_periodo_atual"], reverse=True)
+    for i, b in enumerate(rankeaveis, start=1):
+        b["rank"] = i
 
-    bancos_sem_dado = sorted(set(BANCOS_ALVO) - {c for chave in df["chave_grupo"].unique() for c in chave.split("+")})
+    top = rankeaveis[:top_n]
+
+    # A Porto sempre aparece, mesmo fora do Top N, com a posição real dela.
+    porto = next((b for b in rankeaveis if "porto" in b["_bancos_alvo"]), None)
+    if porto is not None:
+        porto["destaque"] = True
+        if porto not in top:
+            top = top + [porto]
+
+    bancos_sem_dado = sorted(set(BANCOS_ALVO) - {c for b in grupos.values() for c in b["_bancos_alvo"]})
     if bancos_sem_dado:
         print(f"[aviso] banco(s)-alvo sem nenhuma entrada no ranking de reclamações nos períodos "
               f"{periodos}: {bancos_sem_dado} - confira se o nome oficial no arquivo do Bacen bate "
               f"com os termos em BANCOS_ALVO (rode listar_instituicoes_alvo() ou inspecione "
               f"df[col_instituicao].unique() pra achar o nome certo).")
 
-    return blocks, periodos_ok
+    for b in top:
+        del b["_bancos_alvo"]
+        del b["_valor_periodo_atual"]
+
+    return top, periodos_ok
 
 
 def periodos_reclamacoes_recentes(n: int = 6, defasagem_dias: int = 45) -> list[tuple[int, int]]:
