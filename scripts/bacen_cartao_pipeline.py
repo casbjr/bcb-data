@@ -340,23 +340,27 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
 
     df = pd.concat(resultados, ignore_index=True)
 
-    mask_cartao = df["NomeColuna"].str.contains("Cartão", case=False, na=False)
-    if not mask_cartao.any():
-        mask_cartao = df["NomeColuna"].str.contains("Cartao", case=False, na=False)
-        
+    # A modalidade ("Cartão de Crédito", "Empréstimo com Consignação em
+    # Folha" etc.) vem no campo "Grupo", não em "NomeColuna" - esse último
+    # só carrega o sub-eixo de vencimento ("A Vencer em até 90 Dias",
+    # "Total"...). Descoberto inspecionando um dump real dos campos brutos
+    # do registro (ver PR que adicionou esse dump). Dentro do grupo "Cartão
+    # de Crédito", a linha com NomeColuna == "Total" é o valor agregado da
+    # carteira por instituição - equivalente à coluna "Total" que aparece
+    # sob cada grupo de modalidade no export manual do site (dados.csv).
+    if "Grupo" in df.columns:
+        mask_cartao = (
+            df["Grupo"].astype(str).str.contains("Cartão", case=False, na=False)
+            & (df["NomeColuna"].astype(str).str.strip() == "Total")
+        )
+    else:
+        mask_cartao = pd.Series(False, index=df.index)
+
     if not mask_cartao.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
-        print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. Colunas: {colunas_disponiveis}")
-
-        # Segundo o usuário, o relatório 11 sob TipoInstituicao=1 ("Carteira
-        # de Crédito PF") JÁ TEM modalidade "Cartão" junto com "Consignado"
-        # etc. - então o problema provavelmente não é o relatório/tipo (a
-        # varredura abaixo já não achou nada testando outros números), e sim
-        # que a modalidade não vem no campo NomeColuna (que só carrega o
-        # sub-eixo de vencimento, tipo "A Vencer em até 90 Dias" / "Total").
-        # Ela deve estar em outro campo do registro bruto que o código nunca
-        # leu - dump completo aqui pra revelar esse campo no log real.
-        print(f"[aviso] campos brutos disponíveis no registro (além de NomeColuna): {sorted(df.columns.tolist())}")
+        print(f"[aviso] nenhuma linha com Grupo='Cartão de Crédito' e NomeColuna='Total' encontrada. "
+              f"Colunas de NomeColuna disponíveis: {colunas_disponiveis}")
+        print(f"[aviso] campos brutos disponíveis no registro: {sorted(df.columns.tolist())}")
         print(f"[aviso] amostra de registros brutos (até 3): {df.head(3).to_dict('records')}")
 
         print("[aviso] rodando varredura de relatórios candidatos (TipoInstituicao 1 e 2) pra achar "
@@ -367,7 +371,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             for tipo_inst_scan in (1, 2):
                 _descobrir_relatorio_cartao(anomes, tipo_inst_scan)
         return pd.DataFrame()
-        
+
     return df[mask_cartao]
 
 
