@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# macOS
+.DS_Store
+
+# Saída local do bacen_cartao_pipeline.py (scripts/bacen_cartao_pipeline.py
+# escreve CSVs de debug aqui quando rodado direto, fora do fluxo do
+# workflow) - não é pra versionar.
+/output/
+
+# Exports manuais do site do Bacen usados só pra validação pontual (não
+# consumidos por nenhum script) - guardar fora do controle de versão.
+dados.csv
