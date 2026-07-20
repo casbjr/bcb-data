@@ -4,10 +4,11 @@ Pipeline de dados de cartão de crédito - Banco Central do Brasil
 
 Cinco fontes:
   1. SGS        -> séries mensais, nível Sistema Financeiro Nacional (agregado)
-  2. IF.data    -> dados trimestrais POR INSTITUIÇÃO E MODALIDADE (Cartão de
-                    Crédito, Consignado, Veículos, Habitação etc.) - Porto +
-                    concorrentes diretos: Pan, BV, Inter, C6 + benchmarks:
-                    Itaú, Bradesco, Santander, BTG, Nubank
+  2. IF.data    -> dados trimestrais de CARTÃO DE CRÉDITO POR INSTITUIÇÃO,
+                    com o detalhamento por vencimento (Total, Vencido a
+                    Partir de 15 Dias, A Vencer em até 90 Dias etc.) -
+                    Porto + concorrentes diretos: Pan, BV, Inter, C6 +
+                    benchmarks: Itaú, Bradesco, Santander, BTG, Nubank
   3. SCR.data   -> mensal, mercado todo, muito granular (não isola banco por nome)
   4. Meios de Pagamentos (MPV) -> trimestral, volume/quantidade de transações com cartão
   5. Ranking de Reclamações -> trimestral, POR INSTITUIÇÃO (proxy de qualidade
@@ -301,10 +302,10 @@ def _descobrir_relatorio_cartao(anomes: int, tipo_inst: int,
 
 
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
-    """Busca TODAS as modalidades (Cartão de Crédito, Consignado, Veículos,
-    Habitação etc.) do relatório 11 (PF) do IF.data pros bancos-alvo, nos
-    trimestres informados - a filtragem por modalidade específica fica por
-    conta de quem consome o retorno (ver campo "Grupo")."""
+    """Busca a modalidade 'Cartão de Crédito' do relatório 11 (PF) do
+    IF.data pros bancos-alvo, nos trimestres informados - com TODOS os
+    sub-cortes de vencimento (Total, Vencido a Partir de 15 Dias, A Vencer
+    em até 90 Dias etc.), não só o Total agregado."""
     resultados = []
     for anomes in anomes_list:
         # Lógica de migração regulatória (Até 12/2024 = Tipo 2, Pós 03/2025 = Tipo 1)
@@ -393,18 +394,16 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
 
     # A modalidade ("Cartão de Crédito", "Empréstimo com Consignação em
     # Folha", "Veículos", "Habitação" etc.) vem no campo "Grupo", não em
-    # "NomeColuna" - esse último só carrega o sub-eixo de vencimento ("A
-    # Vencer em até 90 Dias", "Total"...). Descoberto inspecionando um dump
-    # real dos campos brutos do registro (ver PR que adicionou esse dump).
-    # Mantém TODAS as modalidades (não só Cartão) - dentro de cada uma, a
-    # linha com NomeColuna == "Total" é o valor agregado da carteira por
-    # instituição - equivalente à coluna "Total" que aparece sob cada grupo
-    # de modalidade no export manual do site (dados.csv).
+    # "NomeColuna" - esse último carrega o sub-eixo de vencimento ("A
+    # Vencer em até 90 Dias", "Vencido a Partir de 15 Dias", "Total"...).
+    # Descoberto inspecionando um dump real dos campos brutos do registro
+    # (ver PR que adicionou esse dump). Filtra só a modalidade "Cartão de
+    # Crédito" (não as outras) - mas mantém TODOS os sub-cortes de
+    # vencimento dentro dela, não só o "Total" agregado, pra dar o mesmo
+    # nível de detalhe (vencido/a vencer) que o export manual do site
+    # (dados.csv) já mostra por modalidade.
     if "Grupo" in df.columns:
-        mask_modalidade = (
-            df["Grupo"].notna()
-            & (df["NomeColuna"].astype(str).str.strip() == "Total")
-        )
+        mask_modalidade = df["Grupo"].astype(str).str.contains("Cartão", case=False, na=False)
     else:
         mask_modalidade = pd.Series(False, index=df.index)
 
