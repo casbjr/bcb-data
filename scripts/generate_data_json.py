@@ -135,7 +135,10 @@ def build_ifdata_block(quarters):
         return []
     blocks = []
 
-    col_valor = next((c for c in df.columns if "valor" in c.lower()), None)
+    # O campo com o valor em R$ se chama "Saldo" no retorno bruto do
+    # Bacen (confirmado inspecionando o dump de registros brutos) - não
+    # contém "valor" no nome, por isso o "saldo" também entra na busca.
+    col_valor = next((c for c in df.columns if "valor" in c.lower() or "saldo" in c.lower()), None)
     if col_valor is None:
         print("[aviso] coluna de valor não identificada em IF.data - "
               "ajuste build_ifdata_block() manualmente")
