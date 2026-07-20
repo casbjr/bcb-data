@@ -147,10 +147,12 @@ def build_ifdata_block(quarters):
     # Tratamento contra NaN para não quebrar a estrutura do JSON
     df[col_valor] = df[col_valor].fillna(0)
 
-    # Um bloco por (banco, modalidade) - traz Cartão, Consignado, Veículos,
-    # Habitação etc. como séries separadas, e deixa o painel filtrar por
-    # modalidade em vez de já vir pré-filtrado só pra Cartão.
-    for (nome, modalidade), grupo in df.groupby(["NomeInstituicao", "Grupo"]):
+    # Um bloco por (banco, corte de vencimento) - só Cartão de Crédito
+    # (já filtrado em get_ifdata_cartao), mas com todos os cortes: Total,
+    # Vencido a Partir de 15 Dias, A Vencer em até 90 Dias etc. - mesmo
+    # detalhamento que o export manual do site (dados.csv) mostra por
+    # modalidade. O painel filtra por corte (default "Total").
+    for (nome, corte), grupo in df.groupby(["NomeInstituicao", "NomeColuna"]):
         grupo = grupo.sort_values("AnoMes")
         tier = grupo["tier"].iloc[0] if "tier" in grupo.columns else "outro"
 
@@ -161,12 +163,12 @@ def build_ifdata_block(quarters):
         nome_exibicao = NOME_CANONICO.get(chave, nome) if chave else nome
 
         blocks.append({
-            "key": f"{chave or _slug(nome)}_{_slug(modalidade)}",
-            "label": f"{nome_exibicao} · {modalidade} PF",
+            "key": f"{chave or _slug(nome)}_{_slug(corte)}",
+            "label": f"{nome_exibicao} · Cartão de Crédito · {corte} PF",
             "unit": "R$ bi",
             "group": nome_exibicao,
             "tier": tier,
-            "modalidade": modalidade,
+            "modalidade": corte,
             "dates": [str(a) for a in grupo["AnoMes"]],
             "values": [round(float(v) / 1e9, 2) for v in grupo[col_valor]],
         })
@@ -418,6 +420,19 @@ def periodos_reclamacoes_recentes(n: int = 6, defasagem_dias: int = 45) -> list[
     return candidatos[-n:]
 
 
+def quarters_ifdata_recentes(n: int = 6, defasagem_dias: int = 75) -> list[int]:
+    """Como periodos_reclamacoes_recentes(), mas pro IF.data (AnoMes no
+    formato AAAAMM) - reaproveita get_quarters() por ano, olhando 3 anos
+    pra trás pra garantir candidatos suficientes mesmo quando n é grande e
+    o ano ainda está no começo. Dá histórico de verdade (múltiplos
+    trimestres) em vez de só o trimestre mais recente."""
+    hoje = date.today()
+    candidatos = []
+    for ano in (hoje.year - 2, hoje.year - 1, hoje.year):
+        candidatos.extend(get_quarters(ano, defasagem_dias))
+    return candidatos[-n:]
+
+
 def main():
     # Proteção do bloco SGS para instabilidades da API do Bacen
     try:
@@ -427,14 +442,12 @@ def main():
         print(f"[aviso] SGS falhou ({e}) - data.json sai sem dados do SGS")
         sgs_blocks = []
 
-    # Trimestres do IF.data calculados automaticamente (considera a
-    # defasagem de publicação de ~75 dias) em vez de hardcoded - não
-    # precisa mais editar esse número toda vez que sai um trimestre novo.
-    quarters = get_quarters(date.today().year)
-    if not quarters:
-        # início de ano: ainda não saiu nenhum trimestre do ano corrente,
-        # usa o(s) último(s) do ano anterior
-        quarters = get_quarters(date.today().year - 1)[-1:]
+    # Últimos trimestres do IF.data calculados automaticamente (considera a
+    # defasagem de publicação de ~75 dias), olhando pra trás o suficiente
+    # pra dar histórico de verdade nos cards (mesma janela de 6 trimestres
+    # já usada pro Ranking de Reclamações) em vez de só o trimestre mais
+    # recente.
+    quarters = quarters_ifdata_recentes(6)
     try:
         ifdata_blocks = build_ifdata_block(quarters)
         print(f"[sucesso] IF.data processado com {len(ifdata_blocks)} blocos (trimestres: {quarters}).")

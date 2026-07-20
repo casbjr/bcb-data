@@ -199,7 +199,7 @@
 
 
 <div id="ifSection">
-  <div class="section-label">IF.data — carteira de crédito PF por instituição e modalidade, trimestral</div>
+  <div class="section-label">IF.data — Cartão de Crédito PF por instituição, com histórico, trimestral</div>
   <div class="chips tier" id="ifModalidadeChips"></div>
   <div class="chips tier" id="ifTierChips"></div>
   <div class="chips" id="ifChips"></div>
@@ -271,30 +271,30 @@ const MOCK = {
       dates:["jan/26","fev/26","mar/26","abr/26"], values:[3.1,3.15,3.05,3.1] },
   ],
   ifdata: [
-    { key:"porto_cartao", label:"Porto · Cartão de Crédito PF", unit:"R$ bi", group:"Porto", tier:"concorrente", modalidade:"Cartão de Crédito",
+    { key:"porto_total", label:"Porto · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Porto", tier:"concorrente", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[4.1,4.3,4.5,4.6] },
-    { key:"pan_cartao", label:"Banco Pan · Cartão de Crédito PF", unit:"R$ bi", group:"Banco Pan", tier:"concorrente", modalidade:"Cartão de Crédito",
+    { key:"pan_total", label:"Banco Pan · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Banco Pan", tier:"concorrente", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[8.9,9.4,9.7,10.1] },
-    { key:"bv_cartao", label:"BV · Cartão de Crédito PF", unit:"R$ bi", group:"BV", tier:"concorrente", modalidade:"Cartão de Crédito",
+    { key:"bv_total", label:"BV · Cartão de Crédito · Total PF", unit:"R$ bi", group:"BV", tier:"concorrente", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[6.2,6.5,6.6,6.8] },
-    { key:"inter_cartao", label:"Inter · Cartão de Crédito PF", unit:"R$ bi", group:"Inter", tier:"concorrente", modalidade:"Cartão de Crédito",
+    { key:"inter_total", label:"Inter · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Inter", tier:"concorrente", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[12.3,13.1,13.9,14.6] },
-    { key:"c6_cartao", label:"C6 Bank · Cartão de Crédito PF", unit:"R$ bi", group:"C6 Bank", tier:"concorrente", modalidade:"Cartão de Crédito",
+    { key:"c6_total", label:"C6 Bank · Cartão de Crédito · Total PF", unit:"R$ bi", group:"C6 Bank", tier:"concorrente", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[15.8,16.9,17.5,18.2] },
-    { key:"itau_cartao", label:"Itaú · Cartão de Crédito PF", unit:"R$ bi", group:"Itaú", tier:"benchmark", modalidade:"Cartão de Crédito",
+    { key:"itau_total", label:"Itaú · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Itaú", tier:"benchmark", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[110,114,118,121] },
-    { key:"bradesco_cartao", label:"Bradesco · Cartão de Crédito PF", unit:"R$ bi", group:"Bradesco", tier:"benchmark", modalidade:"Cartão de Crédito",
+    { key:"bradesco_total", label:"Bradesco · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Bradesco", tier:"benchmark", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[95,97,99,101] },
-    { key:"santander_cartao", label:"Santander · Cartão de Crédito PF", unit:"R$ bi", group:"Santander", tier:"benchmark", modalidade:"Cartão de Crédito",
+    { key:"santander_total", label:"Santander · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Santander", tier:"benchmark", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[68,70,72,74] },
-    { key:"btg_cartao", label:"BTG Pactual · Cartão de Crédito PF", unit:"R$ bi", group:"BTG Pactual", tier:"benchmark", modalidade:"Cartão de Crédito",
+    { key:"btg_total", label:"BTG Pactual · Cartão de Crédito · Total PF", unit:"R$ bi", group:"BTG Pactual", tier:"benchmark", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[9.1,10.3,11.2,12.4] },
-    { key:"nubank_cartao", label:"Nubank · Cartão de Crédito PF", unit:"R$ bi", group:"Nubank", tier:"benchmark", modalidade:"Cartão de Crédito",
+    { key:"nubank_total", label:"Nubank · Cartão de Crédito · Total PF", unit:"R$ bi", group:"Nubank", tier:"benchmark", modalidade:"Total",
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[58,63,68,73] },
-    { key:"porto_consignado", label:"Porto · Empréstimo com Consignação em Folha PF", unit:"R$ bi", group:"Porto", tier:"concorrente", modalidade:"Empréstimo com Consignação em Folha",
-      dates:["2Q25","3Q25","4Q25","1Q26"], values:[1.8,1.9,2.0,2.1] },
-    { key:"itau_consignado", label:"Itaú · Empréstimo com Consignação em Folha PF", unit:"R$ bi", group:"Itaú", tier:"benchmark", modalidade:"Empréstimo com Consignação em Folha",
-      dates:["2Q25","3Q25","4Q25","1Q26"], values:[40,41,42,44] },
+    { key:"porto_vencido", label:"Porto · Cartão de Crédito · Vencido a Partir de 15 Dias PF", unit:"R$ bi", group:"Porto", tier:"concorrente", modalidade:"Vencido a Partir de 15 Dias",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[0.18,0.19,0.20,0.21] },
+    { key:"porto_a_vencer_90", label:"Porto · Cartão de Crédito · A Vencer em até 90 Dias PF", unit:"R$ bi", group:"Porto", tier:"concorrente", modalidade:"A Vencer em até 90 Dias",
+      dates:["2Q25","3Q25","4Q25","1Q26"], values:[1.6,1.7,1.8,1.9] },
   ],
   reclamacoes: [
     { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", rank:18, destaque:true,
@@ -522,10 +522,10 @@ function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleD
   setupFilters(groupChipsEl, gridEl, allSeries, 'group', staleDays);
 }
 
-// Filtro extra específico do IF.data: escolhe a modalidade (Cartão de
-// Crédito, Consignado, Veículos...) antes de aplicar o filtro de
-// tier/banco já existente - o get_ifdata_cartao() traz todas as
-// modalidades, não só cartão, então o painel decide o que mostrar.
+// Filtro extra específico do IF.data: escolhe o corte de vencimento
+// (Total, Vencido a Partir de 15 Dias, A Vencer em até 90 Dias...) antes
+// de aplicar o filtro de tier/banco já existente - só Cartão de Crédito é
+// buscado, mas com todos os cortes, então o painel decide qual mostrar.
 function setupModalidadeFilter(modalidadeChipsEl, tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays){
   const modalidades = ['Todas', ...new Set(allSeries.map(s => s.modalidade).filter(Boolean))];
   modalidadeChipsEl.innerHTML = '';
@@ -537,9 +537,10 @@ function setupModalidadeFilter(modalidadeChipsEl, tierChipsEl, groupChipsEl, gri
       setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtrado, staleDays);
     }));
   });
-  // Por padrão já abre em "Cartão de Crédito" se existir, já que é o
-  // produto que o painel mais acompanha - "Todas" continua a um clique.
-  const inicial = modalidades.includes('Cartão de Crédito') ? 'Cartão de Crédito' : 'Todas';
+  // Por padrão já abre em "Total" se existir, já que é o valor agregado
+  // da carteira - "Todas" continua a um clique pra ver os cortes de
+  // vencido/a vencer.
+  const inicial = modalidades.includes('Total') ? 'Total' : 'Todas';
   const filtradoInicial = inicial === 'Todas' ? allSeries : allSeries.filter(s => s.modalidade === inicial);
   [...modalidadeChipsEl.children].forEach(c => c.classList.remove('active'));
   const idxInicial = modalidades.indexOf(inicial);
