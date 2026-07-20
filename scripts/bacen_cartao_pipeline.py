@@ -347,6 +347,18 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     if not mask_cartao.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
         print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. Colunas: {colunas_disponiveis}")
+
+        # Segundo o usuário, o relatório 11 sob TipoInstituicao=1 ("Carteira
+        # de Crédito PF") JÁ TEM modalidade "Cartão" junto com "Consignado"
+        # etc. - então o problema provavelmente não é o relatório/tipo (a
+        # varredura abaixo já não achou nada testando outros números), e sim
+        # que a modalidade não vem no campo NomeColuna (que só carrega o
+        # sub-eixo de vencimento, tipo "A Vencer em até 90 Dias" / "Total").
+        # Ela deve estar em outro campo do registro bruto que o código nunca
+        # leu - dump completo aqui pra revelar esse campo no log real.
+        print(f"[aviso] campos brutos disponíveis no registro (além de NomeColuna): {sorted(df.columns.tolist())}")
+        print(f"[aviso] amostra de registros brutos (até 3): {df.head(3).to_dict('records')}")
+
         print("[aviso] rodando varredura de relatórios candidatos (TipoInstituicao 1 e 2) pra achar "
               "onde foi parar a coluna de Cartão de Crédito (ver linhas '[descoberta]' abaixo) - a "
               "suposição 'pós 03/2025 = só TipoInstituicao=1' pode estar errada pra esse relatório "
