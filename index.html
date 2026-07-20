@@ -139,6 +139,11 @@
     font-size:12px; color:var(--ink-dim); line-height:1.35;
     max-width:70%;
   }
+  .rank-badge{
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    color:var(--ink); background:var(--ink-faint); opacity:0.7;
+    border-radius:4px; padding:1px 5px; margin-right:6px;
+  }
   .badge{
     font-family:var(--mono); font-size:11px; font-weight:600;
     padding:2px 7px; border-radius:4px; white-space:nowrap;
@@ -197,7 +202,7 @@
 </div>
 
 <div id="reclamacoesSection">
-  <div class="section-label">Ranking de Reclamações — por instituição, trimestral</div>
+  <div class="section-label">Ranking de Reclamações — Top 10 por índice, trimestral</div>
   <div class="chips tier" id="reclamacoesTierChips"></div>
   <div class="chips" id="reclamacoesChips"></div>
   <div class="grid" id="reclamacoesGrid"></div>
@@ -230,13 +235,16 @@
          "values": [4.1, 4.3, 4.5, 4.6] }
      ],
      "reclamacoes": [
-       { "key": "porto_reclamacoes", "label": "Porto · índice de reclamações",
-         "unit": "pontos", "group": "Porto", "dates": ["2025T3","2025T4","2026T1"],
-         "values": [18.4, 21.2, 19.8] }
+       { "key": "porto", "label": "Porto · índice de reclamações", "rank": 8,
+         "unit": "pontos", "group": "Porto", "tier": "concorrente",
+         "dates": ["2025T3","2025T4","2026T1"], "values": [18.4, 21.2, 19.8] }
      ]
    }
    "type" (PF/PJ/Total) e "group" (nome do banco) alimentam os chips de
-   filtro no topo de cada seção do painel.
+   filtro no topo de cada seção do painel. Em "reclamacoes", "rank" (1 =
+   pior índice) é gerado pelo generate_data_json.py e usado pra ordenar o
+   Top 10 dos cards - se ausente (ex.: MOCK sem o campo), o render() cai
+   pra ordenar pelo último valor da série.
    ========================================================================= */
 
 const MOCK = {
@@ -278,25 +286,25 @@ const MOCK = {
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[58,63,68,73] },
   ],
   reclamacoes: [
-    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente",
+    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", rank:8,
       dates:["3Q25","4Q25","1Q26"], values:[18.4,21.2,19.8] },
-    { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente",
+    { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente", rank:7,
       dates:["3Q25","4Q25","1Q26"], values:[22.6,20.1,23.4] },
-    { key:"bv_reclamacoes", label:"BV · índice de reclamações", unit:"pontos", group:"BV", tier:"concorrente",
+    { key:"bv_reclamacoes", label:"BV · índice de reclamações", unit:"pontos", group:"BV", tier:"concorrente", rank:9,
       dates:["3Q25","4Q25","1Q26"], values:[16.9,17.5,15.8] },
-    { key:"inter_reclamacoes", label:"Inter · índice de reclamações", unit:"pontos", group:"Inter", tier:"concorrente",
+    { key:"inter_reclamacoes", label:"Inter · índice de reclamações", unit:"pontos", group:"Inter", tier:"concorrente", rank:4,
       dates:["3Q25","4Q25","1Q26"], values:[27.3,25.9,29.1] },
-    { key:"c6_reclamacoes", label:"C6 Bank · índice de reclamações", unit:"pontos", group:"C6 Bank", tier:"concorrente",
+    { key:"c6_reclamacoes", label:"C6 Bank · índice de reclamações", unit:"pontos", group:"C6 Bank", tier:"concorrente", rank:3,
       dates:["3Q25","4Q25","1Q26"], values:[30.2,28.4,31.6] },
-    { key:"itau_reclamacoes", label:"Itaú · índice de reclamações", unit:"pontos", group:"Itaú", tier:"benchmark",
+    { key:"itau_reclamacoes", label:"Itaú · índice de reclamações", unit:"pontos", group:"Itaú", tier:"benchmark", rank:6,
       dates:["3Q25","4Q25","1Q26"], values:[24.1,22.9,25.6] },
-    { key:"bradesco_reclamacoes", label:"Bradesco · índice de reclamações", unit:"pontos", group:"Bradesco", tier:"benchmark",
+    { key:"bradesco_reclamacoes", label:"Bradesco · índice de reclamações", unit:"pontos", group:"Bradesco", tier:"benchmark", rank:1,
       dates:["3Q25","4Q25","1Q26"], values:[38.7,41.2,43.9] },
-    { key:"santander_reclamacoes", label:"Santander · índice de reclamações", unit:"pontos", group:"Santander", tier:"benchmark",
+    { key:"santander_reclamacoes", label:"Santander · índice de reclamações", unit:"pontos", group:"Santander", tier:"benchmark", rank:5,
       dates:["3Q25","4Q25","1Q26"], values:[29.4,31.8,28.2] },
-    { key:"btg_reclamacoes", label:"BTG Pactual · índice de reclamações", unit:"pontos", group:"BTG Pactual", tier:"benchmark",
+    { key:"btg_reclamacoes", label:"BTG Pactual · índice de reclamações", unit:"pontos", group:"BTG Pactual", tier:"benchmark", rank:10,
       dates:["3Q25","4Q25","1Q26"], values:[9.8,11.2,10.4] },
-    { key:"nubank_reclamacoes", label:"Nubank · índice de reclamações", unit:"pontos", group:"Nubank", tier:"benchmark",
+    { key:"nubank_reclamacoes", label:"Nubank · índice de reclamações", unit:"pontos", group:"Nubank", tier:"benchmark", rank:2,
       dates:["3Q25","4Q25","1Q26"], values:[31.5,29.8,33.2] },
   ]
 };
@@ -362,9 +370,11 @@ function makeCard(series, staleDays){
   const freshClass = isStale ? 'stale' : 'ok';
   const freshTxt = isStale ? `${ageDays}d atrás` : 'em dia';
 
+  const rankBadge = series.rank ? `<span class="rank-badge">#${series.rank}</span>` : '';
+
   card.innerHTML = `
     <div class="card-top">
-      <div class="label">${label}</div>
+      <div class="label">${rankBadge}${label}</div>
       <div class="badge ${badgeClass}">${deltaTxt}</div>
     </div>
     <div class="bignum">${fmt(last, unit)}<span class="unit">${unit}</span></div>
@@ -479,7 +489,7 @@ function setupFilters(chipsEl, gridEl, allSeries, groupKey, staleDays){
 }
 
 const TIER_LABELS = {
-  concorrente: 'Concorrentes diretos', benchmark: 'Benchmark',
+  concorrente: 'Concorrentes diretos', benchmark: 'Benchmark', conglomerado: 'Conglomerado',
   saldo: 'Saldo', inadimplencia: 'Inadimplência', juros: 'Juros'
 };
 
@@ -504,7 +514,12 @@ function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleD
 function render(data){
   const sgs = data.sgs || [];
   const ifdata = data.ifdata || [];
-  const reclamacoes = data.reclamacoes || [];
+  // Ordena pelo "rank" (gerado pelo generate_data_json.py a partir do
+  // índice mais recente, pior primeiro). Se a fonte não tiver "rank"
+  // (ex.: MOCK), cai de volta pra ordenar pelo último valor da série.
+  const reclamacoes = [...(data.reclamacoes || [])].sort((a, b) =>
+    (a.rank ?? -a.values[a.values.length - 1]) - (b.rank ?? -b.values[b.values.length - 1])
+  );
   setupTieredFilters(document.getElementById('sgsTierChips'), document.getElementById('sgsChips'), document.getElementById('sgsGrid'), sgs, STALE_THRESHOLD_DAYS.sgs);
 
   setupTieredFilters(document.getElementById('ifTierChips'), document.getElementById('ifChips'), document.getElementById('ifGrid'), ifdata, STALE_THRESHOLD_DAYS.ifdata);

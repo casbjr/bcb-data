@@ -22,6 +22,7 @@ from bacen_cartao_pipeline import (
     get_ranking_reclamacoes_cartao,
     get_quarters,
     SGS_SERIES_CARTAO,
+    BANCOS_ALVO,
 )
 
 OUT_PATH = Path(__file__).parent.parent / "docs" / "data.json"
@@ -69,6 +70,35 @@ MESES_PT = ["jan", "fev", "mar", "abr", "mai", "jun",
 
 def fmt_mes_ano(d) -> str:
     return f"{MESES_PT[d.month - 1]}/{d.strftime('%y')}"
+
+
+# Nome de exibição estável por banco-alvo, independente de como o Bacen
+# grafou a instituição no arquivo daquele trimestre (evita cards duplicados
+# quando o nome oficial muda de um período pro outro).
+NOME_CANONICO = {
+    "porto": "Porto",
+    "pan": "Banco Pan",
+    "bv": "BV",
+    "inter": "Inter",
+    "c6": "C6 Bank",
+    "itau": "Itaú",
+    "bradesco": "Bradesco",
+    "santander": "Santander",
+    "btg": "BTG Pactual",
+    "nubank": "Nubank",
+}
+
+
+def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
+    """Como identificar_tier(), mas retorna TODAS as chaves de BANCOS_ALVO que
+    baterem no nome (em vez de só a primeira) - necessário pra detectar o
+    caso de conglomerados que juntam dois bancos-alvo numa linha só
+    (ex.: BTG Pactual/Banco Pan) sem perder um deles silenciosamente."""
+    nome_upper = str(nome_instituicao).upper()
+    return sorted(
+        chave for chave, banco in BANCOS_ALVO.items()
+        if any(termo.upper() in nome_upper for termo in banco["termos"])
+    )
 
 
 # Prefixo do key -> métrica, usado como segunda camada de filtro no painel
@@ -154,29 +184,79 @@ def build_reclamacoes_block(periodos):
     # solicitados, se algum trimestre ainda não tiver sido publicado).
     periodos_ok = sorted(df[["Ano", "Periodo"]].drop_duplicates().itertuples(index=False, name=None))
 
+    # Agrupa por chave canônica do banco-alvo (não pelo nome literal do
+    # Bacen) - o mesmo banco pode aparecer com grafias diferentes em
+    # trimestres diferentes (ex.: "C6 BANK (conglomerado)" vs "BANCO C6
+    # (conglomerado)"), e agrupar pelo texto puro fragmentava a série em
+    # cards duplicados em vez de um histórico contínuo por banco.
+    df = df.copy()
+    df["bancos_chave"] = df[col_instituicao].apply(identificar_bancos_alvo)
+    df["chave_grupo"] = df["bancos_chave"].apply(lambda l: "+".join(l) if l else None)
+    sem_chave = df[df["chave_grupo"].isna()]
+    if not sem_chave.empty:
+        print(f"[aviso] {len(sem_chave)} linha(s) do ranking bateram no filtro de termos mas não "
+              f"resolveram pra nenhuma chave de BANCOS_ALVO: "
+              f"{sem_chave[col_instituicao].unique().tolist()}")
+    df = df.dropna(subset=["chave_grupo"])
+
+    # Converte strings BR para float americano; valores que não derem pra
+    # converter são DESCARTADOS (não viram 0 - um índice de reclamações "0"
+    # entraria no ranking como o melhor resultado possível, o que seria
+    # enganoso se na verdade é só um erro de parsing).
+    df["valor_num"] = pd.to_numeric(
+        df[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
+        errors="coerce"
+    )
+    invalidos = df[df["valor_num"].isna()]
+    if not invalidos.empty:
+        print(f"[aviso] {len(invalidos)} valor(es) de índice não-numérico descartado(s): "
+              f"{list(zip(invalidos[col_instituicao], invalidos[col_indice]))}")
+    df = df.dropna(subset=["valor_num"])
+
     blocks = []
-    for nome, grupo in df.groupby(col_instituicao):
+    for chave_grupo, grupo in df.groupby("chave_grupo"):
         grupo = grupo.sort_values(["Ano", "Periodo"])
+        chaves = chave_grupo.split("+")
 
-        # Converte strings BR para float americano e substitui nulos gerados por erro por 0
-        valores = pd.to_numeric(
-            grupo[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
-            errors="coerce"
-        ).fillna(0)
+        if len(chaves) > 1:
+            # Conglomerado que junta mais de um banco-alvo numa linha só
+            # (ex.: BTG comprou o Pan e o Bacen passou a publicar os dois
+            # como uma entidade). Mantemos como um card único em vez de
+            # silenciosamente atribuir a linha inteira ao tier de só um
+            # dos dois bancos.
+            label_base = " / ".join(NOME_CANONICO.get(c, c) for c in chaves)
+            tier = "conglomerado"
+        else:
+            label_base = NOME_CANONICO.get(chaves[0], chaves[0])
+            tier = BANCOS_ALVO[chaves[0]]["tier"]
 
-        if valores.empty:
-            continue
-
-        tier = grupo["tier"].iloc[0] if "tier" in grupo.columns else "outro"
+        ultimo_valor = float(grupo["valor_num"].iloc[-1])
         blocks.append({
-            "key": str(nome).lower().replace(" ", "_"),
-            "label": f"{nome} · índice de reclamações",
+            "key": chave_grupo,
+            "label": f"{label_base} · índice de reclamações",
             "unit": "pontos",
-            "group": nome,
+            "group": label_base,
             "tier": tier,
             "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
-            "values": [round(float(v), 2) for v in valores],
+            "values": [round(float(v), 2) for v in grupo["valor_num"]],
+            "_ultimo_valor": ultimo_valor,
         })
+
+    # Ranking Top 10: ordena pelo índice mais recente, do pior (maior) pro
+    # melhor (menor) - é assim que o ranking de reclamações do Bacen é lido
+    # convencionalmente - e numera a posição de cada card.
+    blocks.sort(key=lambda b: b["_ultimo_valor"], reverse=True)
+    for i, block in enumerate(blocks, start=1):
+        block["rank"] = i
+        del block["_ultimo_valor"]
+
+    bancos_sem_dado = sorted(set(BANCOS_ALVO) - {c for chave in df["chave_grupo"].unique() for c in chave.split("+")})
+    if bancos_sem_dado:
+        print(f"[aviso] banco(s)-alvo sem nenhuma entrada no ranking de reclamações nos períodos "
+              f"{periodos}: {bancos_sem_dado} - confira se o nome oficial no arquivo do Bacen bate "
+              f"com os termos em BANCOS_ALVO (rode listar_instituicoes_alvo() ou inspecione "
+              f"df[col_instituicao].unique() pra achar o nome certo).")
+
     return blocks, periodos_ok
 
 

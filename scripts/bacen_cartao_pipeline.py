@@ -280,6 +280,93 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     return df[mask_cartao]
 
 
+def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
+    """Função de apoio: lista o que o cadastro do Bacen tem para os termos
+    de busca, para você confirmar o nome oficial antes de automatizar."""
+    registros = _ifdata_get("IfDataCadastro", params={"AnoMes": anomes})
+    cadastro = pd.DataFrame(registros)
+    if cadastro.empty:
+        return cadastro
+
+    padrao = "|".join(_todos_termos())
+    resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
+        ["CodInst", "NomeInstituicao", "Td", "CodConglomeradoPrudencial"]
+    ].copy()
+    resultado["tier"] = resultado["NomeInstituicao"].apply(identificar_tier)
+    return resultado
+
+
+# ---------------------------------------------------------------------------
+# 5. Ranking de Reclamações - por instituição, trimestral
+# ---------------------------------------------------------------------------
+#
+# Cartão de crédito costuma ser a categoria #1 de reclamação nesse ranking,
+# então mesmo não sendo um dado "de cartão" in si, é um proxy forte de
+# qualidade operacional em cartão, comparável entre Porto/Itaú/Nubank.
+
+RANKING_RECLAMACOES_URL = "https://www3.bcb.gov.br/rdrweb/rest/ext/ranking/arquivo"
+
+
+def baixar_ranking_reclamacoes(ano: int, periodo: int, periodicidade: str = "TRIMESTRAL",
+                                 tipo: str = "Bancos e financeiras") -> pd.DataFrame:
+    """Baixa o CSV do ranking de reclamações de um trimestre específico.
+
+    periodo: 1 a 4 (trimestre) quando periodicidade='TRIMESTRAL'.
+
+    Atenção: as colunas são detectadas por palavra-chave ao invés de nome
+    fixo, já que o layout exato pode variar entre trimestres.
+    """
+    params = {"ano": ano, "periodicidade": periodicidade, "periodo": periodo, "tipo": tipo}
+    resp = requests.get(RANKING_RECLAMACOES_URL, params=params, timeout=60)
+    resp.raise_for_status()
+
+    # Arquivos do Bacen costumam vir em latin-1 com separador ';' - se vier
+    # diferente, o pandas geralmente detecta sozinho com engine='python'.
+    try:
+        df = pd.read_csv(io.BytesIO(resp.content), sep=";", encoding="latin-1", engine="python")
+        print(f"[debug] colunas do ranking de reclamações ({ano}T{periodo}): {list(df.columns)}")
+    except Exception:
+        df = pd.read_csv(io.BytesIO(resp.content), sep=None, encoding="latin-1", engine="python")
+
+    return df
+
+
+def get_ranking_reclamacoes_cartao(periodos: list[tuple[int, int]]) -> pd.DataFrame:
+    """Busca o ranking de reclamações para os bancos-alvo nos
+    (ano, trimestre) informados, ex.: [(2025, 3), (2025, 4), (2026, 1)]."""
+    resultados = []
+    for ano, periodo in periodos:
+        try:
+            df = baixar_ranking_reclamacoes(ano, periodo)
+        except Exception as e:
+            print(f"[aviso] falha ao baixar ranking {ano}T{periodo}: {e}")
+            continue
+
+        col_instituicao = next((c for c in df.columns if "institui" in c.lower()), None)
+        if col_instituicao is None:
+            print(f"[aviso] coluna de instituição não encontrada em {ano}T{periodo} - "
+                  f"colunas disponíveis: {list(df.columns)}")
+            continue
+
+        padrao = "|".join(_todos_termos())
+        alvo = df[df[col_instituicao].astype(str).str.contains(padrao, case=False, na=False)].copy()
+        if alvo.empty:
+            nomes_unicos = df[col_instituicao].dropna().unique().tolist()
+            print(f"[aviso] nenhum banco-alvo bateu em {ano}T{periodo} (coluna='{col_instituicao}') - "
+                  f"nomes disponíveis nesse arquivo: {nomes_unicos}")
+            continue
+
+        alvo["tier"] = alvo[col_instituicao].apply(identificar_tier)
+        alvo["Ano"] = ano
+        alvo["Periodo"] = periodo
+        alvo["AnoPeriodo"] = f"{ano}T{periodo}"
+        resultados.append(alvo)
+
+    if not resultados:
+        return pd.DataFrame()
+    return pd.concat(resultados, ignore_index=True)
+
+
 if __name__ == "__main__":
     print("Baixando séries SGS (nacional, mensal)...")
     sgs_df = get_sgs_cartao(start="2024-01-01")
