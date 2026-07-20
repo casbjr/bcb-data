@@ -392,6 +392,28 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
 
     df = pd.concat(resultados, ignore_index=True)
 
+    # Descarta linhas exatamente duplicadas (mesmo trimestre, instituição,
+    # modalidade, corte E valor) - visto em produção: o Bacen às vezes
+    # republica/retifica um trimestre já divulgado, e o IF.data devolve
+    # tanto a versão original quanto a retificação como linhas separadas
+    # quando elas não mudaram esse valor específico. Sem isso, o histórico
+    # de TODAS as instituições ficava com o mesmo trimestre repetido 2-3x
+    # (mesmo valor), distorcendo a série sem mudar o "Total" mais recente.
+    # Só remove duplicata EXATA (mesmo valor) - se duas linhas do mesmo
+    # trimestre têm valores DIFERENTES (ex.: duas entidades regulamentadas
+    # distintas do mesmo grupo bancário reportando cada uma sua própria
+    # carteira), ambas ficam - isso não é duplicata, é dado real de mais de
+    # uma entidade que merece investigação separada, não descarte silencioso.
+    colunas_dedup = [c for c in ("AnoMes", "CodInst_limpo", "Grupo", "Conta", "NomeColuna", "Saldo")
+                      if c in df.columns]
+    if colunas_dedup:
+        antes = len(df)
+        df = df.drop_duplicates(subset=colunas_dedup).reset_index(drop=True)
+        removidas = antes - len(df)
+        if removidas:
+            print(f"[aviso] {removidas} linha(s) duplicada(s) (mesmo trimestre/instituição/corte/valor) "
+                  f"descartada(s) - provável republicação/retificação do Bacen.")
+
     # A modalidade ("Cartão de Crédito", "Empréstimo com Consignação em
     # Folha", "Veículos", "Habitação" etc.) vem no campo "Grupo", não em
     # "NomeColuna" - esse último carrega o sub-eixo de vencimento ("A

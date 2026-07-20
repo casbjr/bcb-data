@@ -122,6 +122,46 @@ def test_get_ifdata_cartao_mantem_so_cartao_de_credito_com_todos_os_cortes(monke
     assert set(resultado["NomeColuna"]) == {"Total", "Vencido a Partir de 15 Dias"}
 
 
+def test_get_ifdata_cartao_descarta_linha_duplicada_exata(monkeypatch):
+    # Bug real visto em produção: um trimestre (ex.: retificação do Bacen)
+    # veio com a MESMA linha (instituição/corte/valor) repetida 3x, fazendo
+    # o histórico mostrar o mesmo trimestre 3 vezes seguidas com valor
+    # idêntico. Duplicata exata deve ser descartada.
+    def fake_ifdata_get(endpoint, params=None, top=None):
+        if endpoint == "IfDataCadastro":
+            return [{"NomeInstituicao": "PORTO SEGURO", "CodInst": "1"}]
+        if endpoint == "IfDataValores":
+            linha = {"CodInst": "1", "Grupo": "Cartão de Crédito", "Conta": "1", "NomeColuna": "Total", "Saldo": 4.6e9}
+            return [linha, dict(linha), dict(linha)]
+        return []
+
+    monkeypatch.setattr(p, "_ifdata_get", fake_ifdata_get)
+    resultado = p.get_ifdata_cartao([202603])
+
+    assert len(resultado) == 1
+    assert resultado["Saldo"].iloc[0] == 4.6e9
+
+
+def test_get_ifdata_cartao_preserva_linhas_com_valores_diferentes(monkeypatch):
+    # Duas linhas do MESMO corte/trimestre com valores DIFERENTES não são
+    # duplicata (podem ser duas entidades reais distintas) - o dedup só
+    # remove igualdade exata, nunca decide sozinho qual valor "vale".
+    def fake_ifdata_get(endpoint, params=None, top=None):
+        if endpoint == "IfDataCadastro":
+            return [{"NomeInstituicao": "PORTO SEGURO", "CodInst": "1"}]
+        if endpoint == "IfDataValores":
+            return [
+                {"CodInst": "1", "Grupo": "Cartão de Crédito", "Conta": "1", "NomeColuna": "Total", "Saldo": 4.6e9},
+                {"CodInst": "1", "Grupo": "Cartão de Crédito", "Conta": "1", "NomeColuna": "Total", "Saldo": 2.1e9},
+            ]
+        return []
+
+    monkeypatch.setattr(p, "_ifdata_get", fake_ifdata_get)
+    resultado = p.get_ifdata_cartao([202603])
+
+    assert len(resultado) == 2
+
+
 def test_get_ifdata_cartao_vazio_quando_relatorio_nao_tem_cartao(monkeypatch):
     def fake_ifdata_get(endpoint, params=None, top=None):
         if endpoint == "IfDataCadastro":
