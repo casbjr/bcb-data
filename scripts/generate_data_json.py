@@ -147,15 +147,26 @@ def build_ifdata_block(quarters):
     # Tratamento contra NaN para não quebrar a estrutura do JSON
     df[col_valor] = df[col_valor].fillna(0)
 
-    for nome, grupo in df.groupby("NomeInstituicao"):
+    # Um bloco por (banco, modalidade) - traz Cartão, Consignado, Veículos,
+    # Habitação etc. como séries separadas, e deixa o painel filtrar por
+    # modalidade em vez de já vir pré-filtrado só pra Cartão.
+    for (nome, modalidade), grupo in df.groupby(["NomeInstituicao", "Grupo"]):
         grupo = grupo.sort_values("AnoMes")
         tier = grupo["tier"].iloc[0] if "tier" in grupo.columns else "outro"
+
+        # Nome de exibição curto (NOME_CANONICO) em vez da razão social
+        # completa do cadastro do Bacen, que pode ser bem longa.
+        chaves = identificar_bancos_alvo(nome, incluir_curtos=False)
+        chave = chaves[0] if chaves else None
+        nome_exibicao = NOME_CANONICO.get(chave, nome) if chave else nome
+
         blocks.append({
-            "key": nome.lower().replace(" ", "_"),
-            "label": f"{nome} · carteira cartão PF",
+            "key": f"{chave or _slug(nome)}_{_slug(modalidade)}",
+            "label": f"{nome_exibicao} · {modalidade} PF",
             "unit": "R$ bi",
-            "group": nome,
+            "group": nome_exibicao,
             "tier": tier,
+            "modalidade": modalidade,
             "dates": [str(a) for a in grupo["AnoMes"]],
             "values": [round(float(v) / 1e9, 2) for v in grupo[col_valor]],
         })

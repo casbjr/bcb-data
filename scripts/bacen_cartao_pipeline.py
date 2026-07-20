@@ -4,9 +4,10 @@ Pipeline de dados de cartão de crédito - Banco Central do Brasil
 
 Cinco fontes:
   1. SGS        -> séries mensais, nível Sistema Financeiro Nacional (agregado)
-  2. IF.data    -> dados trimestrais POR INSTITUIÇÃO (Porto + concorrentes
-                    diretos: Pan, BV, Inter, C6 + benchmarks: Itaú, Bradesco,
-                    Santander, BTG, Nubank)
+  2. IF.data    -> dados trimestrais POR INSTITUIÇÃO E MODALIDADE (Cartão de
+                    Crédito, Consignado, Veículos, Habitação etc.) - Porto +
+                    concorrentes diretos: Pan, BV, Inter, C6 + benchmarks:
+                    Itaú, Bradesco, Santander, BTG, Nubank
   3. SCR.data   -> mensal, mercado todo, muito granular (não isola banco por nome)
   4. Meios de Pagamentos (MPV) -> trimestral, volume/quantidade de transações com cartão
   5. Ranking de Reclamações -> trimestral, POR INSTITUIÇÃO (proxy de qualidade
@@ -95,18 +96,40 @@ def get_sgs_cartao(start: str = "2024-01-01") -> pd.DataFrame:
 
 # O IF.data usa a razão social completa (ex.: "ITAÚ UNIBANCO S.A."), mas o
 # Ranking de Reclamações usa nomes curtos/de marca pro mesmo banco (ex.: só
-# "ITAU", só "INTER") - por isso cada banco-alvo tem termos das duas
-# convenções. Termos curtos ("INTER", "BV", "ITAU") só são seguros porque a
-# busca usa fronteira de palavra (ver _padrao_termos) - sem isso, "INTER"
-# bateria como substring em "BANCO INTERMEDIUM", um banco de verdade e
-# completamente diferente do Inter.
+# "ITAU", só "INTER") - por isso cada banco-alvo tem "termos" (nome
+# completo, seguro pra qualquer base) e opcionalmente "termos_curtos"
+# (marca curta, só segura pro Ranking de Reclamações - uma lista pequena e
+# curada de ~15-50 instituições). O cadastro do IF.data tem milhares de
+# instituições, incluindo cooperativas/entidades cujo nome só MENCIONA um
+# banco (ex.: "COOPERATIVA ... DOS FUNCIONÁRIOS DAS EMPRESAS ITAÚ" bate em
+# "ITAÚ" mesmo com fronteira de palavra, sem ser o Itaú Unibanco de
+# verdade) - por isso o IF.data usa só "termos", nunca "termos_curtos".
+# Padrões de nome que indicam uma entidade satélite de um grupo (não o
+# banco/instituição principal) - usado só como critério de desempate
+# quando várias entidades do mesmo grupo compartilham um código de
+# conglomerado (ver comentário em get_ifdata_cartao).
+_SUFIXOS_SUBSIDIARIA = [
+    "ADMINISTRADORA DE CONSÓRCIO", "ADMINISTRADORA DE CONSORCIO",
+    "DTVM", "DISTRIBUIDORA DE TÍTULOS", "DISTRIBUIDORA DE TITULOS",
+    "INSTITUIÇÃO DE PAGAMENTO", "INSTITUICAO DE PAGAMENTO",
+    "VEÍCULOS", "VEICULOS", "SEGUROS", "CORRETORA",
+    "ARRENDAMENTO MERCANTIL", "CRÉDITO IMOBILIÁRIO", "CREDITO IMOBILIARIO",
+    "CAPITALIZAÇÃO", "CAPITALIZACAO", "PREVIDÊNCIA", "PREVIDENCIA",
+]
+
+
+def _parece_subsidiaria(nome: str) -> bool:
+    nome_upper = str(nome).upper()
+    return any(sufixo in nome_upper for sufixo in _SUFIXOS_SUBSIDIARIA)
+
+
 BANCOS_ALVO = {
     "porto":     {"termos": ["PORTO SEGURO", "PORTO BANK"], "tier": "concorrente"},
     "pan":       {"termos": ["BANCO PAN"], "tier": "concorrente"},
-    "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA", "BV"], "tier": "concorrente"},
-    "inter":     {"termos": ["BANCO INTER", "INTER"], "tier": "concorrente"},
+    "bv":        {"termos": ["BANCO VOTORANTIM", "BV FINANCEIRA"], "termos_curtos": ["BV"], "tier": "concorrente"},
+    "inter":     {"termos": ["BANCO INTER"], "termos_curtos": ["INTER"], "tier": "concorrente"},
     "c6":        {"termos": ["C6 BANK", "BANCO C6"], "tier": "concorrente"},
-    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO", "ITAÚ", "ITAU"], "tier": "benchmark"},
+    "itau":      {"termos": ["ITAÚ UNIBANCO", "ITAU UNIBANCO"], "termos_curtos": ["ITAÚ", "ITAU"], "tier": "benchmark"},
     "bradesco":  {"termos": ["BRADESCO"], "tier": "benchmark"},
     "santander": {"termos": ["SANTANDER"], "tier": "benchmark"},
     "btg":       {"termos": ["BTG PACTUAL"], "tier": "benchmark"},
@@ -114,8 +137,15 @@ BANCOS_ALVO = {
 }
 
 
-def _todos_termos() -> list[str]:
-    return [t for banco in BANCOS_ALVO.values() for t in banco["termos"]]
+def _termos_de(banco: dict, incluir_curtos: bool = True) -> list[str]:
+    termos = list(banco["termos"])
+    if incluir_curtos:
+        termos += banco.get("termos_curtos", [])
+    return termos
+
+
+def _todos_termos(incluir_curtos: bool = True) -> list[str]:
+    return [t for banco in BANCOS_ALVO.values() for t in _termos_de(banco, incluir_curtos)]
 
 
 def _padrao_termos(termos: list[str]) -> str:
@@ -125,15 +155,15 @@ def _padrao_termos(termos: list[str]) -> str:
     return "|".join(rf"\b{re.escape(t)}\b" for t in termos)
 
 
-def identificar_tier(nome_instituicao: str) -> str:
+def identificar_tier(nome_instituicao: str, incluir_curtos: bool = True) -> str:
     nome_upper = str(nome_instituicao).upper()
     for banco in BANCOS_ALVO.values():
-        if re.search(_padrao_termos(banco["termos"]), nome_upper):
+        if re.search(_padrao_termos(_termos_de(banco, incluir_curtos)), nome_upper):
             return banco["tier"]
     return "outro"
 
 
-def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
+def identificar_bancos_alvo(nome_instituicao: str, incluir_curtos: bool = True) -> list[str]:
     """Como identificar_tier(), mas retorna TODAS as chaves de BANCOS_ALVO que
     baterem no nome (em vez de só a primeira) - necessário pra detectar o
     caso de conglomerados que juntam dois bancos-alvo numa linha só (ex.:
@@ -141,7 +171,7 @@ def identificar_bancos_alvo(nome_instituicao: str) -> list[str]:
     nome_upper = str(nome_instituicao).upper()
     return sorted(
         chave for chave, banco in BANCOS_ALVO.items()
-        if re.search(_padrao_termos(banco["termos"]), nome_upper)
+        if re.search(_padrao_termos(_termos_de(banco, incluir_curtos)), nome_upper)
     )
 
 
@@ -271,8 +301,10 @@ def _descobrir_relatorio_cartao(anomes: int, tipo_inst: int,
 
 
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
-    """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
-    pros bancos-alvo, nos trimestres informados."""
+    """Busca TODAS as modalidades (Cartão de Crédito, Consignado, Veículos,
+    Habitação etc.) do relatório 11 (PF) do IF.data pros bancos-alvo, nos
+    trimestres informados - a filtragem por modalidade específica fica por
+    conta de quem consome o retorno (ver campo "Grupo")."""
     resultados = []
     for anomes in anomes_list:
         # Lógica de migração regulatória (Até 12/2024 = Tipo 2, Pós 03/2025 = Tipo 1)
@@ -286,14 +318,30 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             print(f"[aviso] cadastro veio vazio pra {anomes}")
             continue
 
-        padrao = _padrao_termos(_todos_termos())
+        # incluir_curtos=False: o cadastro do IF.data tem milhares de
+        # instituições (cooperativas, DTVMs, seguradoras...), então só usa
+        # termos de nome completo/seguro - os termos curtos de marca (só
+        # "ITAÚ", só "INTER") ficam reservados pro Ranking de Reclamações,
+        # que é uma lista pequena e curada.
+        padrao = _padrao_termos(_todos_termos(incluir_curtos=False))
         alvo = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)].copy()
         if alvo.empty:
             print(f"[aviso] nenhuma instituição-alvo encontrada no cadastro de {anomes}")
             continue
-        alvo["tier"] = alvo["NomeInstituicao"].apply(identificar_tier)
+        alvo["tier"] = alvo["NomeInstituicao"].apply(lambda n: identificar_tier(n, incluir_curtos=False))
 
-        # Mapeamento robusto de códigos candidatos
+        # Mapeamento robusto de códigos candidatos. Vários dos campos abaixo
+        # (CodConglomeradoPrudencial, CodConglomeradoFinanceiro) são
+        # compartilhados por TODAS as entidades de um mesmo grupo (banco +
+        # consórcio + DTVM + instituição de pagamento + veículos...), então
+        # múltiplas linhas de alvo podem mapear pro MESMO código - sem
+        # cuidado, a última processada "ganha" arbitrariamente, e como
+        # essas subsidiárias costumam vir depois do banco principal na
+        # ordem do cadastro, o resultado ficava rotulado com o nome da
+        # subsidiária (ex.: "BRADESCO ADMINISTRADORA DE CONSÓRCIOS") em vez
+        # do banco de verdade, mesmo quando o saldo pertence ao banco
+        # principal. Preferimos manter o primeiro nome "não-subsidiária"
+        # já visto pra cada código, em vez de sempre sobrescrever.
         campos_codigo_candidatos = ["CodInst", "CodConglomeradoPrudencial", "CodConglomeradoFinanceiro", "CnpjInstituicaoLider"]
         mapa_codigo = {}
         for _, linha in alvo.iterrows():
@@ -301,7 +349,10 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
             for campo in campos_codigo_candidatos:
                 if campo in alvo.columns and pd.notna(linha.get(campo)):
                     cod_limpo = normalizar_codigo(linha[campo])
-                    if cod_limpo:
+                    if not cod_limpo:
+                        continue
+                    existente = mapa_codigo.get(cod_limpo)
+                    if existente is None or (_parece_subsidiaria(existente[0]) and not _parece_subsidiaria(info[0])):
                         mapa_codigo[cod_limpo] = info
         codigos_alvo = list(mapa_codigo.keys())
 
@@ -341,24 +392,25 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     df = pd.concat(resultados, ignore_index=True)
 
     # A modalidade ("Cartão de Crédito", "Empréstimo com Consignação em
-    # Folha" etc.) vem no campo "Grupo", não em "NomeColuna" - esse último
-    # só carrega o sub-eixo de vencimento ("A Vencer em até 90 Dias",
-    # "Total"...). Descoberto inspecionando um dump real dos campos brutos
-    # do registro (ver PR que adicionou esse dump). Dentro do grupo "Cartão
-    # de Crédito", a linha com NomeColuna == "Total" é o valor agregado da
-    # carteira por instituição - equivalente à coluna "Total" que aparece
-    # sob cada grupo de modalidade no export manual do site (dados.csv).
+    # Folha", "Veículos", "Habitação" etc.) vem no campo "Grupo", não em
+    # "NomeColuna" - esse último só carrega o sub-eixo de vencimento ("A
+    # Vencer em até 90 Dias", "Total"...). Descoberto inspecionando um dump
+    # real dos campos brutos do registro (ver PR que adicionou esse dump).
+    # Mantém TODAS as modalidades (não só Cartão) - dentro de cada uma, a
+    # linha com NomeColuna == "Total" é o valor agregado da carteira por
+    # instituição - equivalente à coluna "Total" que aparece sob cada grupo
+    # de modalidade no export manual do site (dados.csv).
     if "Grupo" in df.columns:
-        mask_cartao = (
-            df["Grupo"].astype(str).str.contains("Cartão", case=False, na=False)
+        mask_modalidade = (
+            df["Grupo"].notna()
             & (df["NomeColuna"].astype(str).str.strip() == "Total")
         )
     else:
-        mask_cartao = pd.Series(False, index=df.index)
+        mask_modalidade = pd.Series(False, index=df.index)
 
-    if not mask_cartao.any():
+    if not mask_modalidade.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
-        print(f"[aviso] nenhuma linha com Grupo='Cartão de Crédito' e NomeColuna='Total' encontrada. "
+        print(f"[aviso] nenhuma linha com Grupo preenchido e NomeColuna='Total' encontrada. "
               f"Colunas de NomeColuna disponíveis: {colunas_disponiveis}")
         print(f"[aviso] campos brutos disponíveis no registro: {sorted(df.columns.tolist())}")
         print(f"[aviso] amostra de registros brutos (até 3): {df.head(3).to_dict('records')}")
@@ -372,7 +424,7 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
                 _descobrir_relatorio_cartao(anomes, tipo_inst_scan)
         return pd.DataFrame()
 
-    return df[mask_cartao]
+    return df[mask_modalidade]
 
 
 def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
@@ -383,11 +435,11 @@ def listar_instituicoes_alvo(anomes: int) -> pd.DataFrame:
     if cadastro.empty:
         return cadastro
 
-    padrao = _padrao_termos(_todos_termos())
+    padrao = _padrao_termos(_todos_termos(incluir_curtos=False))
     resultado = cadastro[cadastro["NomeInstituicao"].str.contains(padrao, case=False, na=False)][
         ["CodInst", "NomeInstituicao", "Td", "CodConglomeradoPrudencial"]
     ].copy()
-    resultado["tier"] = resultado["NomeInstituicao"].apply(identificar_tier)
+    resultado["tier"] = resultado["NomeInstituicao"].apply(lambda n: identificar_tier(n, incluir_curtos=False))
     return resultado
 
 
