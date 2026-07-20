@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-20T12:30:47.796837+00:00",
+  "updated_at": "2026-07-20T12:57:20.852319+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -1264,24 +1264,12 @@
   ],
   "ifdata": [
     {
-      "key": "banco_votorantim_s.a.",
-      "label": "BANCO VOTORANTIM S.A. · carteira cartão PF",
+      "key": "bradesco_cart_o_de_cr_dito",
+      "label": "Bradesco · Cartão de Crédito PF",
       "unit": "R$ bi",
-      "group": "BANCO VOTORANTIM S.A.",
-      "tier": "concorrente",
-      "dates": [
-        "202603"
-      ],
-      "values": [
-        5.28
-      ]
-    },
-    {
-      "key": "bradesco_administradora_de_consórcios_ltda.",
-      "label": "BRADESCO ADMINISTRADORA DE CONSÓRCIOS LTDA. · carteira cartão PF",
-      "unit": "R$ bi",
-      "group": "BRADESCO ADMINISTRADORA DE CONSÓRCIOS LTDA.",
+      "group": "Bradesco",
       "tier": "benchmark",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1290,11 +1278,96 @@
       ]
     },
     {
-      "key": "btg_pactual_serviços_financeiros_s.a._distribuidora_de_títulos_e_valores_mobiliários",
-      "label": "BTG PACTUAL SERVIÇOS FINANCEIROS S.A. DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS · carteira cartão PF",
+      "key": "bradesco_empr_stimo_com_consigna_o_em_folha",
+      "label": "Bradesco · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "BTG PACTUAL SERVIÇOS FINANCEIROS S.A. DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS",
+      "group": "Bradesco",
       "tier": "benchmark",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        107.02
+      ]
+    },
+    {
+      "key": "bradesco_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Bradesco · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Bradesco",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        49.24
+      ]
+    },
+    {
+      "key": "bradesco_habita_o",
+      "label": "Bradesco · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Bradesco",
+      "tier": "benchmark",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        108.28
+      ]
+    },
+    {
+      "key": "bradesco_outros_cr_ditos",
+      "label": "Bradesco · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Bradesco",
+      "tier": "benchmark",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        21.96
+      ]
+    },
+    {
+      "key": "bradesco_rural_e_agroindustrial",
+      "label": "Bradesco · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Bradesco",
+      "tier": "benchmark",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        36.44
+      ]
+    },
+    {
+      "key": "bradesco_ve_culos",
+      "label": "Bradesco · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Bradesco",
+      "tier": "benchmark",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        46.25
+      ]
+    },
+    {
+      "key": "btg_cart_o_de_cr_dito",
+      "label": "BTG Pactual · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1303,11 +1376,96 @@
       ]
     },
     {
-      "key": "c6_bank",
-      "label": "C6 BANK · carteira cartão PF",
+      "key": "btg_empr_stimo_com_consigna_o_em_folha",
+      "label": "BTG Pactual · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "C6 BANK",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        22.46
+      ]
+    },
+    {
+      "key": "btg_empr_stimo_sem_consigna_o_em_folha",
+      "label": "BTG Pactual · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        6.56
+      ]
+    },
+    {
+      "key": "btg_habita_o",
+      "label": "BTG Pactual · Habitação PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.18
+      ]
+    },
+    {
+      "key": "btg_outros_cr_ditos",
+      "label": "BTG Pactual · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        1.22
+      ]
+    },
+    {
+      "key": "btg_rural_e_agroindustrial",
+      "label": "BTG Pactual · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.28
+      ]
+    },
+    {
+      "key": "btg_ve_culos",
+      "label": "BTG Pactual · Veículos PF",
+      "unit": "R$ bi",
+      "group": "BTG Pactual",
+      "tier": "benchmark",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        38.62
+      ]
+    },
+    {
+      "key": "c6_cart_o_de_cr_dito",
+      "label": "C6 Bank · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "C6 Bank",
       "tier": "concorrente",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1316,11 +1474,40 @@
       ]
     },
     {
-      "key": "cooperativa_de_economia_e_crédito_mútuo_dos_funcionários_das_empresas_itaú",
-      "label": "COOPERATIVA DE ECONOMIA E CRÉDITO MÚTUO DOS FUNCIONÁRIOS DAS EMPRESAS ITAÚ · carteira cartão PF",
+      "key": "c6_empr_stimo_com_consigna_o_em_folha",
+      "label": "C6 Bank · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "COOPERATIVA DE ECONOMIA E CRÉDITO MÚTUO DOS FUNCIONÁRIOS DAS EMPRESAS ITAÚ",
-      "tier": "benchmark",
+      "group": "C6 Bank",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        40.82
+      ]
+    },
+    {
+      "key": "c6_empr_stimo_sem_consigna_o_em_folha",
+      "label": "C6 Bank · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "C6 Bank",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        1.76
+      ]
+    },
+    {
+      "key": "c6_habita_o",
+      "label": "C6 Bank · Habitação PF",
+      "unit": "R$ bi",
+      "group": "C6 Bank",
+      "tier": "concorrente",
+      "modalidade": "Habitação",
       "dates": [
         "202603"
       ],
@@ -1329,11 +1516,54 @@
       ]
     },
     {
-      "key": "inter_pag_instituição_de_pagamento_s.a.",
-      "label": "INTER PAG INSTITUIÇÃO DE PAGAMENTO S.A. · carteira cartão PF",
+      "key": "c6_outros_cr_ditos",
+      "label": "C6 Bank · Outros Créditos PF",
       "unit": "R$ bi",
-      "group": "INTER PAG INSTITUIÇÃO DE PAGAMENTO S.A.",
+      "group": "C6 Bank",
       "tier": "concorrente",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        1.48
+      ]
+    },
+    {
+      "key": "c6_rural_e_agroindustrial",
+      "label": "C6 Bank · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "C6 Bank",
+      "tier": "concorrente",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "c6_ve_culos",
+      "label": "C6 Bank · Veículos PF",
+      "unit": "R$ bi",
+      "group": "C6 Bank",
+      "tier": "concorrente",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        26.44
+      ]
+    },
+    {
+      "key": "inter_cart_o_de_cr_dito",
+      "label": "Inter · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1342,11 +1572,292 @@
       ]
     },
     {
-      "key": "itaú_unibanco_veículos_administradora_de_consórcios_ltda.",
-      "label": "ITAÚ UNIBANCO VEÍCULOS ADMINISTRADORA DE CONSÓRCIOS LTDA. · carteira cartão PF",
+      "key": "inter_empr_stimo_com_consigna_o_em_folha",
+      "label": "Inter · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "ITAÚ UNIBANCO VEÍCULOS ADMINISTRADORA DE CONSÓRCIOS LTDA.",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        7.64
+      ]
+    },
+    {
+      "key": "inter_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Inter · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        4.68
+      ]
+    },
+    {
+      "key": "inter_habita_o",
+      "label": "Inter · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        9.14
+      ]
+    },
+    {
+      "key": "inter_outros_cr_ditos",
+      "label": "Inter · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        3.86
+      ]
+    },
+    {
+      "key": "inter_rural_e_agroindustrial",
+      "label": "Inter · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.07
+      ]
+    },
+    {
+      "key": "inter_ve_culos",
+      "label": "Inter · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Inter",
+      "tier": "concorrente",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.04
+      ]
+    },
+    {
+      "key": "santander_cart_o_de_cr_dito",
+      "label": "Santander · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "Santander",
       "tier": "benchmark",
+      "modalidade": "Cartão de Crédito",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        63.42
+      ]
+    },
+    {
+      "key": "santander_empr_stimo_com_consigna_o_em_folha",
+      "label": "Santander · Empréstimo com Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        57.98
+      ]
+    },
+    {
+      "key": "santander_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Santander · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        14.94
+      ]
+    },
+    {
+      "key": "santander_habita_o",
+      "label": "Santander · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        68.9
+      ]
+    },
+    {
+      "key": "santander_outros_cr_ditos",
+      "label": "Santander · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        28.58
+      ]
+    },
+    {
+      "key": "santander_rural_e_agroindustrial",
+      "label": "Santander · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        9.44
+      ]
+    },
+    {
+      "key": "santander_ve_culos",
+      "label": "Santander · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Santander",
+      "tier": "benchmark",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        82.38
+      ]
+    },
+    {
+      "key": "bv_cart_o_de_cr_dito",
+      "label": "BV · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Cartão de Crédito",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        5.28
+      ]
+    },
+    {
+      "key": "bv_empr_stimo_com_consigna_o_em_folha",
+      "label": "BV · Empréstimo com Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.28
+      ]
+    },
+    {
+      "key": "bv_empr_stimo_sem_consigna_o_em_folha",
+      "label": "BV · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        8.71
+      ]
+    },
+    {
+      "key": "bv_habita_o",
+      "label": "BV · Habitação PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "bv_outros_cr_ditos",
+      "label": "BV · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.02
+      ]
+    },
+    {
+      "key": "bv_rural_e_agroindustrial",
+      "label": "BV · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "bv_ve_culos",
+      "label": "BV · Veículos PF",
+      "unit": "R$ bi",
+      "group": "BV",
+      "tier": "concorrente",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        55.9
+      ]
+    },
+    {
+      "key": "itau_cart_o_de_cr_dito",
+      "label": "Itaú · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1355,11 +1866,96 @@
       ]
     },
     {
-      "key": "nu_pagamentos_s.a._-_instituição_de_pagamento",
-      "label": "NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO · carteira cartão PF",
+      "key": "itau_empr_stimo_com_consigna_o_em_folha",
+      "label": "Itaú · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO",
+      "group": "Itaú",
       "tier": "benchmark",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        78.6
+      ]
+    },
+    {
+      "key": "itau_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Itaú · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        31.31
+      ]
+    },
+    {
+      "key": "itau_habita_o",
+      "label": "Itaú · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        146.12
+      ]
+    },
+    {
+      "key": "itau_outros_cr_ditos",
+      "label": "Itaú · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        40.72
+      ]
+    },
+    {
+      "key": "itau_rural_e_agroindustrial",
+      "label": "Itaú · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        7.49
+      ]
+    },
+    {
+      "key": "itau_ve_culos",
+      "label": "Itaú · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Itaú",
+      "tier": "benchmark",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        35.91
+      ]
+    },
+    {
+      "key": "nubank_cart_o_de_cr_dito",
+      "label": "Nubank · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1368,11 +1964,96 @@
       ]
     },
     {
-      "key": "porto_seguro_administradora_de_consórcios_ltda",
-      "label": "PORTO SEGURO ADMINISTRADORA DE CONSÓRCIOS LTDA · carteira cartão PF",
+      "key": "nubank_empr_stimo_com_consigna_o_em_folha",
+      "label": "Nubank · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "PORTO SEGURO ADMINISTRADORA DE CONSÓRCIOS LTDA",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo com Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        4.99
+      ]
+    },
+    {
+      "key": "nubank_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Nubank · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        61.78
+      ]
+    },
+    {
+      "key": "nubank_habita_o",
+      "label": "Nubank · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "nubank_outros_cr_ditos",
+      "label": "Nubank · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.68
+      ]
+    },
+    {
+      "key": "nubank_rural_e_agroindustrial",
+      "label": "Nubank · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "nubank_ve_culos",
+      "label": "Nubank · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Nubank",
+      "tier": "benchmark",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "porto_cart_o_de_cr_dito",
+      "label": "Porto · Cartão de Crédito PF",
+      "unit": "R$ bi",
+      "group": "Porto",
       "tier": "concorrente",
+      "modalidade": "Cartão de Crédito",
       "dates": [
         "202603"
       ],
@@ -1381,16 +2062,87 @@
       ]
     },
     {
-      "key": "santander_brasil_administradora_de_consórcio_ltda.",
-      "label": "SANTANDER BRASIL ADMINISTRADORA DE CONSÓRCIO LTDA. · carteira cartão PF",
+      "key": "porto_empr_stimo_com_consigna_o_em_folha",
+      "label": "Porto · Empréstimo com Consignação em Folha PF",
       "unit": "R$ bi",
-      "group": "SANTANDER BRASIL ADMINISTRADORA DE CONSÓRCIO LTDA.",
-      "tier": "benchmark",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo com Consignação em Folha",
       "dates": [
         "202603"
       ],
       "values": [
-        63.42
+        0.1
+      ]
+    },
+    {
+      "key": "porto_empr_stimo_sem_consigna_o_em_folha",
+      "label": "Porto · Empréstimo sem Consignação em Folha PF",
+      "unit": "R$ bi",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Empréstimo sem Consignação em Folha",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.32
+      ]
+    },
+    {
+      "key": "porto_habita_o",
+      "label": "Porto · Habitação PF",
+      "unit": "R$ bi",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Habitação",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "porto_outros_cr_ditos",
+      "label": "Porto · Outros Créditos PF",
+      "unit": "R$ bi",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Outros Créditos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.98
+      ]
+    },
+    {
+      "key": "porto_rural_e_agroindustrial",
+      "label": "Porto · Rural e Agroindustrial PF",
+      "unit": "R$ bi",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Rural e Agroindustrial",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "porto_ve_culos",
+      "label": "Porto · Veículos PF",
+      "unit": "R$ bi",
+      "group": "Porto",
+      "tier": "concorrente",
+      "modalidade": "Veículos",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.74
       ]
     }
   ],
