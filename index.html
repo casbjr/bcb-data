@@ -208,6 +208,7 @@
 
 <div id="reclamacoesSection">
   <div class="section-label">Ranking de Reclamações — Top 15 (Bacen) + Porto em destaque, trimestral</div>
+  <div class="chips tier" id="reclamacoesMetricaChips"></div>
   <div class="chips tier" id="reclamacoesTierChips"></div>
   <div class="chips" id="reclamacoesChips"></div>
   <div class="grid" id="reclamacoesGrid"></div>
@@ -241,8 +242,11 @@
      ],
      "reclamacoes": [
        { "key": "porto", "label": "Porto · índice de reclamações", "rank": 18,
-         "unit": "pontos", "group": "Porto", "tier": "concorrente", "destaque": true,
-         "dates": ["2025T3","2025T4","2026T1"], "values": [18.4, 21.2, 19.8] }
+         "unit": "pontos", "group": "Porto", "tier": "concorrente", "metrica": "índice", "destaque": true,
+         "dates": ["2025T3","2025T4","2026T1"], "values": [18.4, 21.2, 19.8] },
+       { "key": "porto_volume", "label": "Porto · reclamações procedentes", "rank": 18,
+         "unit": "reclamações", "group": "Porto", "tier": "concorrente", "metrica": "volume", "destaque": true,
+         "dates": ["2025T3","2025T4","2026T1"], "values": [112, 131, 124] }
      ]
    }
    "type" (PF/PJ/Total) e "group" (nome do banco) alimentam os chips de
@@ -251,7 +255,11 @@
    monitoradas) e sempre inclui a Porto mesmo se a posição real dela ("rank",
    1 = pior índice) ficar fora do Top 15 - nesse caso "destaque":true pinta o
    card dela diferente. Se "rank" estiver ausente (ex.: MOCK sem o campo), o
-   render() cai pra ordenar pelo último valor da série.
+   render() cai pra ordenar pelo último valor da série. Cada instituição do
+   Top 15 tem duas séries irmãs, diferenciadas por "metrica": "índice" (o
+   índice normalizado por cliente, padrão) e "volume" (reclamações
+   procedentes extrapoladas, a quantidade em si) - o chip de métrica no
+   topo da seção alterna entre as duas.
    ========================================================================= */
 
 const MOCK = {
@@ -297,26 +305,30 @@ const MOCK = {
       dates:["2Q25","3Q25","4Q25","1Q26"], values:[1.6,1.7,1.8,1.9] },
   ],
   reclamacoes: [
-    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", rank:18, destaque:true,
+    { key:"porto_reclamacoes", label:"Porto · índice de reclamações", unit:"pontos", group:"Porto", tier:"concorrente", metrica:"índice", rank:18, destaque:true,
       dates:["3Q25","4Q25","1Q26"], values:[18.4,21.2,19.8] },
-    { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente", rank:7,
+    { key:"pan_reclamacoes", label:"Banco Pan · índice de reclamações", unit:"pontos", group:"Banco Pan", tier:"concorrente", metrica:"índice", rank:7,
       dates:["3Q25","4Q25","1Q26"], values:[22.6,20.1,23.4] },
-    { key:"bv_reclamacoes", label:"BV · índice de reclamações", unit:"pontos", group:"BV", tier:"concorrente", rank:9,
+    { key:"bv_reclamacoes", label:"BV · índice de reclamações", unit:"pontos", group:"BV", tier:"concorrente", metrica:"índice", rank:9,
       dates:["3Q25","4Q25","1Q26"], values:[16.9,17.5,15.8] },
-    { key:"inter_reclamacoes", label:"Inter · índice de reclamações", unit:"pontos", group:"Inter", tier:"concorrente", rank:4,
+    { key:"inter_reclamacoes", label:"Inter · índice de reclamações", unit:"pontos", group:"Inter", tier:"concorrente", metrica:"índice", rank:4,
       dates:["3Q25","4Q25","1Q26"], values:[27.3,25.9,29.1] },
-    { key:"c6_reclamacoes", label:"C6 Bank · índice de reclamações", unit:"pontos", group:"C6 Bank", tier:"concorrente", rank:3,
+    { key:"c6_reclamacoes", label:"C6 Bank · índice de reclamações", unit:"pontos", group:"C6 Bank", tier:"concorrente", metrica:"índice", rank:3,
       dates:["3Q25","4Q25","1Q26"], values:[30.2,28.4,31.6] },
-    { key:"itau_reclamacoes", label:"Itaú · índice de reclamações", unit:"pontos", group:"Itaú", tier:"benchmark", rank:6,
+    { key:"itau_reclamacoes", label:"Itaú · índice de reclamações", unit:"pontos", group:"Itaú", tier:"benchmark", metrica:"índice", rank:6,
       dates:["3Q25","4Q25","1Q26"], values:[24.1,22.9,25.6] },
-    { key:"bradesco_reclamacoes", label:"Bradesco · índice de reclamações", unit:"pontos", group:"Bradesco", tier:"benchmark", rank:1,
+    { key:"bradesco_reclamacoes", label:"Bradesco · índice de reclamações", unit:"pontos", group:"Bradesco", tier:"benchmark", metrica:"índice", rank:1,
       dates:["3Q25","4Q25","1Q26"], values:[38.7,41.2,43.9] },
-    { key:"santander_reclamacoes", label:"Santander · índice de reclamações", unit:"pontos", group:"Santander", tier:"benchmark", rank:5,
+    { key:"santander_reclamacoes", label:"Santander · índice de reclamações", unit:"pontos", group:"Santander", tier:"benchmark", metrica:"índice", rank:5,
       dates:["3Q25","4Q25","1Q26"], values:[29.4,31.8,28.2] },
-    { key:"btg_reclamacoes", label:"BTG Pactual · índice de reclamações", unit:"pontos", group:"BTG Pactual", tier:"benchmark", rank:10,
+    { key:"btg_reclamacoes", label:"BTG Pactual · índice de reclamações", unit:"pontos", group:"BTG Pactual", tier:"benchmark", metrica:"índice", rank:10,
       dates:["3Q25","4Q25","1Q26"], values:[9.8,11.2,10.4] },
-    { key:"nubank_reclamacoes", label:"Nubank · índice de reclamações", unit:"pontos", group:"Nubank", tier:"benchmark", rank:2,
+    { key:"nubank_reclamacoes", label:"Nubank · índice de reclamações", unit:"pontos", group:"Nubank", tier:"benchmark", metrica:"índice", rank:2,
       dates:["3Q25","4Q25","1Q26"], values:[31.5,29.8,33.2] },
+    { key:"porto_reclamacoes_volume", label:"Porto · reclamações procedentes", unit:"reclamações", group:"Porto", tier:"concorrente", metrica:"volume", rank:18, destaque:true,
+      dates:["3Q25","4Q25","1Q26"], values:[112,131,124] },
+    { key:"bradesco_reclamacoes_volume", label:"Bradesco · reclamações procedentes", unit:"reclamações", group:"Bradesco", tier:"benchmark", metrica:"volume", rank:1,
+      dates:["3Q25","4Q25","1Q26"], values:[4820,5310,5490] },
   ]
 };
 
@@ -329,6 +341,7 @@ const STALE_THRESHOLD_DAYS = { sgs: 75, ifdata: 130, reclamacoes: 100 };
 function fmt(v, unit){
   const n = Number(v);
   const s = unit === "R$ bi" ? n.toLocaleString('pt-BR',{maximumFractionDigits:1})
+          : unit === "reclamações" ? n.toLocaleString('pt-BR',{maximumFractionDigits:0})
                               : n.toLocaleString('pt-BR',{maximumFractionDigits:2});
   return s;
 }
@@ -522,29 +535,27 @@ function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleD
   setupFilters(groupChipsEl, gridEl, allSeries, 'group', staleDays);
 }
 
-// Filtro extra específico do IF.data: escolhe o corte de vencimento
-// (Total, Vencido a Partir de 15 Dias, A Vencer em até 90 Dias...) antes
-// de aplicar o filtro de tier/banco já existente - só Cartão de Crédito é
-// buscado, mas com todos os cortes, então o painel decide qual mostrar.
-function setupModalidadeFilter(modalidadeChipsEl, tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays){
-  const modalidades = ['Todas', ...new Set(allSeries.map(s => s.modalidade).filter(Boolean))];
-  modalidadeChipsEl.innerHTML = '';
-  modalidades.forEach((m, i) => {
-    modalidadeChipsEl.appendChild(makeChip(m, i === 0, () => {
-      [...modalidadeChipsEl.children].forEach(c => c.classList.remove('active'));
-      modalidadeChipsEl.children[i].classList.add('active');
-      const filtrado = m === 'Todas' ? allSeries : allSeries.filter(s => s.modalidade === m);
+// Filtro extra genérico de "tipo de série" (um campo extra além de
+// tier/banco) - usado tanto pro corte de vencimento do IF.data (Total,
+// Vencido a Partir de 15 Dias...) quanto pra métrica das Reclamações
+// (Índice, Volume). `campo` é o nome do campo em cada série, `preferido`
+// é o valor que já abre selecionado por padrão se existir na lista.
+function setupExtraChipFilter(campo, preferido, chipsEl, tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays){
+  const valores = ['Todas', ...new Set(allSeries.map(s => s[campo]).filter(Boolean))];
+  chipsEl.innerHTML = '';
+  valores.forEach((v, i) => {
+    chipsEl.appendChild(makeChip(v, i === 0, () => {
+      [...chipsEl.children].forEach(c => c.classList.remove('active'));
+      chipsEl.children[i].classList.add('active');
+      const filtrado = v === 'Todas' ? allSeries : allSeries.filter(s => s[campo] === v);
       setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtrado, staleDays);
     }));
   });
-  // Por padrão já abre em "Total" se existir, já que é o valor agregado
-  // da carteira - "Todas" continua a um clique pra ver os cortes de
-  // vencido/a vencer.
-  const inicial = modalidades.includes('Total') ? 'Total' : 'Todas';
-  const filtradoInicial = inicial === 'Todas' ? allSeries : allSeries.filter(s => s.modalidade === inicial);
-  [...modalidadeChipsEl.children].forEach(c => c.classList.remove('active'));
-  const idxInicial = modalidades.indexOf(inicial);
-  if (modalidadeChipsEl.children[idxInicial]) modalidadeChipsEl.children[idxInicial].classList.add('active');
+  const inicial = valores.includes(preferido) ? preferido : 'Todas';
+  const filtradoInicial = inicial === 'Todas' ? allSeries : allSeries.filter(s => s[campo] === inicial);
+  [...chipsEl.children].forEach(c => c.classList.remove('active'));
+  const idxInicial = valores.indexOf(inicial);
+  if (chipsEl.children[idxInicial]) chipsEl.children[idxInicial].classList.add('active');
   setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtradoInicial, staleDays);
 }
 
@@ -559,8 +570,8 @@ function render(data){
   );
   setupTieredFilters(document.getElementById('sgsTierChips'), document.getElementById('sgsChips'), document.getElementById('sgsGrid'), sgs, STALE_THRESHOLD_DAYS.sgs);
 
-  setupModalidadeFilter(document.getElementById('ifModalidadeChips'), document.getElementById('ifTierChips'), document.getElementById('ifChips'), document.getElementById('ifGrid'), ifdata, STALE_THRESHOLD_DAYS.ifdata);
-  setupTieredFilters(document.getElementById('reclamacoesTierChips'), document.getElementById('reclamacoesChips'), document.getElementById('reclamacoesGrid'), reclamacoes, STALE_THRESHOLD_DAYS.reclamacoes);
+  setupExtraChipFilter('modalidade', 'Total', document.getElementById('ifModalidadeChips'), document.getElementById('ifTierChips'), document.getElementById('ifChips'), document.getElementById('ifGrid'), ifdata, STALE_THRESHOLD_DAYS.ifdata);
+  setupExtraChipFilter('metrica', 'índice', document.getElementById('reclamacoesMetricaChips'), document.getElementById('reclamacoesTierChips'), document.getElementById('reclamacoesChips'), document.getElementById('reclamacoesGrid'), reclamacoes, STALE_THRESHOLD_DAYS.reclamacoes);
 
   const freshest = findFreshest([...sgs, ...ifdata, ...reclamacoes]);
   const stripEl = document.getElementById('freshStrip');

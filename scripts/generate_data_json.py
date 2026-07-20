@@ -313,18 +313,33 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
             v = linha_atual[coluna].iloc[0]
             return float(v) if pd.notna(v) else None
 
+        dates_indice = [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])]
+
+        # Série histórica do volume (reclamações procedentes extrapoladas),
+        # pareada com o índice mas descartando pontos sem esse dado (pode
+        # faltar em algum trimestre isolado mesmo com o índice presente).
+        dates_volume, values_volume = [], []
+        if "valor_procedentes" in grupo.columns:
+            for data_str, v in zip(dates_indice, grupo["valor_procedentes"]):
+                if pd.notna(v):
+                    dates_volume.append(data_str)
+                    values_volume.append(round(float(v)))
+
         grupos[chave_grupo] = {
             "key": "+".join(bancos_alvo_aqui) if bancos_alvo_aqui else _slug(label),
             "label": f"{label} · índice de reclamações",
             "unit": "pontos",
             "group": label,
             "tier": tier,
-            "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
+            "metrica": "índice",
+            "dates": dates_indice,
             "values": [round(float(v), 2) for v in grupo["valor_num"]],
             "_bancos_alvo": bancos_alvo_aqui,
             "_valor_periodo_atual": _valor_atual("valor_num"),
             "_clientes_periodo_atual": _valor_atual("valor_clientes"),
             "_procedentes_periodo_atual": _valor_atual("valor_procedentes"),
+            "_dates_volume": dates_volume,
+            "_values_volume": values_volume,
         }
 
     # Só entram instituições com dado no período mais recente (mesma base
@@ -387,13 +402,38 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
         clientes_fmt = f"{b['_clientes_periodo_atual']:,.0f}" if b["_clientes_periodo_atual"] is not None else "?"
         print(f"  #{b.get('rank')} {b['group']} - índice={b['values'][-1] if b['values'] else '?'} - clientes={clientes_fmt}")
 
+    # Bloco irmão de VOLUME (reclamações procedentes extrapoladas) pra cada
+    # instituição do Top N - mesma seleção/posição do índice, mas mostrando
+    # a quantidade de reclamações em vez do índice normalizado por
+    # cliente. É uma série separada (metrica="volume"), filtrável à parte
+    # no painel - não substitui o índice.
+    volume_blocks = []
+    for b in top:
+        if b["_dates_volume"]:
+            bloco_volume = {
+                "key": f"{b['key']}_volume",
+                "label": f"{b['group']} · reclamações procedentes",
+                "unit": "reclamações",
+                "group": b["group"],
+                "tier": b["tier"],
+                "metrica": "volume",
+                "dates": b["_dates_volume"],
+                "values": b["_values_volume"],
+                "rank": b.get("rank"),
+            }
+            if b.get("destaque"):
+                bloco_volume["destaque"] = True
+            volume_blocks.append(bloco_volume)
+
     for b in top:
         del b["_bancos_alvo"]
         del b["_valor_periodo_atual"]
         del b["_clientes_periodo_atual"]
         del b["_procedentes_periodo_atual"]
+        del b["_dates_volume"]
+        del b["_values_volume"]
 
-    return top, periodos_ok
+    return top + volume_blocks, periodos_ok
 
 
 def periodos_reclamacoes_recentes(n: int = 6, defasagem_dias: int = 45) -> list[tuple[int, int]]:
