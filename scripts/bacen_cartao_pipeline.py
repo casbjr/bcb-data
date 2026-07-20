@@ -225,6 +225,48 @@ def get_quarters(year: int, defasagem_dias: int = 75) -> list[int]:
     return publicados
 
 
+RELATORIOS_CANDIDATOS_SCAN = [str(i) for i in range(1, 21)]
+
+
+def _descobrir_relatorio_cartao(anomes: int, tipo_inst: int,
+                                  candidatos: list[str] = None) -> None:
+    """Diagnóstico: varre uma faixa de códigos de Relatorio do IF.data
+    tentando achar qual deles tem uma coluna de 'Cartão de Crédito' pro
+    AnoMes/TipoInstituicao dados.
+
+    Existe pra ser chamado só quando RELATORIO_CARTAO_PF para de bater (ex.:
+    o Bacen renumerou ou reestruturou o catálogo - foi o caso em torno da
+    migração de TipoInstituicao 2->1 em 03/2025, quando o relatório 11 sob
+    TipoInstituicao=1 passou a devolver só colunas de prazo de vencimento
+    "A Vencer até 90 Dias" etc., sem granularidade de modalidade). Gera no
+    log do Actions a pista de qual código usar no lugar, sem precisar caçar
+    manualmente no site do Bacen - só imprime avisos, não altera nada.
+    """
+    print(f"[descoberta] varrendo relatórios candidatos ({candidatos or RELATORIOS_CANDIDATOS_SCAN}) "
+          f"pra achar coluna de 'Cartão de Crédito' (AnoMes={anomes}, TipoInstituicao={tipo_inst})...")
+    for codigo in (candidatos or RELATORIOS_CANDIDATOS_SCAN):
+        try:
+            registros = _ifdata_get("IfDataValores", params={
+                "AnoMes": anomes,
+                "TipoInstituicao": tipo_inst,
+                "Relatorio": f"'{codigo}'",
+            }, top=200)
+        except Exception as e:
+            print(f"[descoberta] Relatorio '{codigo}' falhou: {e}")
+            continue
+
+        if not registros:
+            continue
+
+        colunas = sorted({r.get("NomeColuna") for r in registros if r.get("NomeColuna")})
+        bate = [c for c in colunas if c and "cart" in c.lower()]
+        if bate:
+            print(f"[descoberta] *** Relatorio '{codigo}' TEM coluna de cartão: {bate} "
+                  f"(colunas completas: {colunas}) ***")
+        else:
+            print(f"[descoberta] Relatorio '{codigo}': sem coluna de cartão - colunas: {colunas}")
+
+
 def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     """Busca a linha 'Cartão de Crédito' do relatório 11 (PF) do IF.data
     pros bancos-alvo, nos trimestres informados."""
@@ -302,6 +344,11 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     if not mask_cartao.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
         print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. Colunas: {colunas_disponiveis}")
+        print("[aviso] rodando varredura de relatórios candidatos pra achar onde foi parar "
+              "a coluna de Cartão de Crédito (ver linhas '[descoberta]' abaixo)...")
+        for anomes in anomes_list:
+            tipo_inst = 1 if anomes >= 202503 else 2
+            _descobrir_relatorio_cartao(anomes, tipo_inst)
         return pd.DataFrame()
         
     return df[mask_cartao]
