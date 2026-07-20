@@ -1,0 +1,4 @@
+# Dependências extras só pra rodar a suíte de testes (tests/), não usadas
+# em produção pelo painel nem pelo workflow de geração do data.json.
+-r requirements.txt
+pytest>=8.0
