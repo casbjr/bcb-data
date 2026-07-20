@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-20T10:40:20.174772+00:00",
+  "updated_at": "2026-07-20T11:17:38.074210+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -1265,6 +1265,304 @@
   "ifdata": [],
   "reclamacoes": [
     {
+      "key": "mt_ip_conglomerado",
+      "label": "MT IP (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "MT IP (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q26"
+      ],
+      "values": [
+        210836.54
+      ],
+      "rank": 1
+    },
+    {
+      "key": "banco_ribeir_o_preto_conglomerado",
+      "label": "BANCO RIBEIRÃO PRETO (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BANCO RIBEIRÃO PRETO (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        47187.78,
+        25308.57,
+        33146.6,
+        42318.23
+      ],
+      "rank": 2
+    },
+    {
+      "key": "parati_cfi_conglomerado",
+      "label": "PARATI CFI (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "PARATI CFI (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        44470.72,
+        41341.58
+      ],
+      "rank": 3
+    },
+    {
+      "key": "lecca_conglomerado",
+      "label": "LECCA (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "LECCA (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "3Q25",
+        "1Q26"
+      ],
+      "values": [
+        2146.64,
+        3121.08
+      ],
+      "rank": 4
+    },
+    {
+      "key": "banco_digimais_conglomerado",
+      "label": "BANCO DIGIMAIS (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BANCO DIGIMAIS (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        526.21,
+        887.62,
+        1552.43,
+        1464.12,
+        1665.06
+      ],
+      "rank": 5
+    },
+    {
+      "key": "facta_s_a_cfi_conglomerado",
+      "label": "FACTA S.A. CFI (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "FACTA S.A. CFI (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        519.91,
+        1032.26,
+        2660.2,
+        2167.37,
+        984.99
+      ],
+      "rank": 6
+    },
+    {
+      "key": "astro_ip_conglomerado",
+      "label": "ASTRO IP (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "ASTRO IP (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        1257.69,
+        953.71,
+        836.13
+      ],
+      "rank": 7
+    },
+    {
+      "key": "banco_bari_de_investimento_e_financi_conglomerado",
+      "label": "BANCO BARI DE INVESTIMENTO E FINANCI. (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BANCO BARI DE INVESTIMENTO E FINANCI. (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        488.59,
+        502.85,
+        902.77,
+        519.74
+      ],
+      "rank": 8
+    },
+    {
+      "key": "brb_conglomerado",
+      "label": "BRB (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BRB (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        230.03,
+        161.68,
+        171.97,
+        136.73,
+        190.49,
+        386.13
+      ],
+      "rank": 9
+    },
+    {
+      "key": "volkswagen_conglomerado",
+      "label": "VOLKSWAGEN (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "VOLKSWAGEN (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        140.72,
+        132.13,
+        180.57,
+        197.55,
+        212.63,
+        253.81
+      ],
+      "rank": 10
+    },
+    {
+      "key": "cobuccio_scfi_conglomerado",
+      "label": "COBUCCIO SCFI (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "COBUCCIO SCFI (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        302.68,
+        338.73,
+        359.31,
+        288.14,
+        224.87
+      ],
+      "rank": 11
+    },
+    {
+      "key": "agibank_conglomerado",
+      "label": "AGIBANK (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "AGIBANK (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "4Q24",
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        868.53,
+        625.36,
+        1030.58,
+        614.12,
+        362.43,
+        218.64
+      ],
+      "rank": 12
+    },
+    {
+      "key": "m_ntore_ip_conglomerado",
+      "label": "MÊNTORE IP (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "MÊNTORE IP (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        238.44,
+        211.75,
+        216.64
+      ],
+      "rank": 13
+    },
+    {
+      "key": "bullla_ip_conglomerado",
+      "label": "BULLLA IP (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BULLLA IP (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        109.36,
+        204.3
+      ],
+      "rank": 14
+    },
+    {
+      "key": "bco_do_est_do_pa_s_a_conglomerado",
+      "label": "BCO DO EST. DO PA S.A. (conglomerado) · índice de reclamações",
+      "unit": "pontos",
+      "group": "BCO DO EST. DO PA S.A. (conglomerado)",
+      "tier": "mercado",
+      "dates": [
+        "1Q25",
+        "2Q25",
+        "3Q25",
+        "4Q25",
+        "1Q26"
+      ],
+      "values": [
+        98.88,
+        107.29,
+        124.4,
+        143.15,
+        197.9
+      ],
+      "rank": 15
+    },
+    {
       "key": "porto",
       "label": "Porto · índice de reclamações",
       "unit": "pontos",
@@ -1286,125 +1584,8 @@
         139.2,
         150.52
       ],
-      "rank": 1
-    },
-    {
-      "key": "c6",
-      "label": "C6 Bank · índice de reclamações",
-      "unit": "pontos",
-      "group": "C6 Bank",
-      "tier": "concorrente",
-      "dates": [
-        "4Q24",
-        "1Q25",
-        "2Q25",
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        67.18,
-        58.44,
-        48.67,
-        53.03,
-        51.92,
-        55.3
-      ],
-      "rank": 2
-    },
-    {
-      "key": "bradesco",
-      "label": "Bradesco · índice de reclamações",
-      "unit": "pontos",
-      "group": "Bradesco",
-      "tier": "benchmark",
-      "dates": [
-        "4Q24",
-        "1Q25",
-        "2Q25",
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        35.89,
-        69.63,
-        60.58,
-        51.74,
-        43.89,
-        48.92
-      ],
-      "rank": 3
-    },
-    {
-      "key": "btg+pan",
-      "label": "BTG Pactual / Banco Pan · índice de reclamações",
-      "unit": "pontos",
-      "group": "BTG Pactual / Banco Pan",
-      "tier": "conglomerado",
-      "dates": [
-        "4Q24",
-        "1Q25",
-        "2Q25",
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        36.27,
-        38.32,
-        36.89,
-        32.23,
-        33.67,
-        42.81
-      ],
-      "rank": 4
-    },
-    {
-      "key": "santander",
-      "label": "Santander · índice de reclamações",
-      "unit": "pontos",
-      "group": "Santander",
-      "tier": "benchmark",
-      "dates": [
-        "4Q24",
-        "1Q25",
-        "2Q25",
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        33.65,
-        37.5,
-        29.96,
-        29.25,
-        27.29,
-        34.49
-      ],
-      "rank": 5
-    },
-    {
-      "key": "nubank",
-      "label": "Nubank · índice de reclamações",
-      "unit": "pontos",
-      "group": "Nubank",
-      "tier": "benchmark",
-      "dates": [
-        "1Q25",
-        "2Q25",
-        "3Q25",
-        "4Q25",
-        "1Q26"
-      ],
-      "values": [
-        10.6,
-        12.96,
-        12.67,
-        12.04,
-        10.65
-      ],
-      "rank": 6
+      "rank": 22,
+      "destaque": true
     }
   ]
 }
