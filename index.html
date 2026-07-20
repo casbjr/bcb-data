@@ -498,15 +498,28 @@ function renderGrid(gridEl, series, staleDays){
   series.forEach(s => gridEl.appendChild(makeCard(s, staleDays)));
 }
 
-function setupFilters(chipsEl, gridEl, allSeries, groupKey, staleDays){
+// `todasSeries`/`extraChipsEl` (opcionais) permitem que escolher uma
+// instituição específica "escape" o filtro de corte/métrica selecionado lá
+// em cima - sem isso, filtrar por um banco enquanto o corte estiver parado
+// em "Total" (o padrão) mostrava só 1 card daquele banco, escondendo o
+// resto do detalhamento (Vencido, A Vencer...). Ver setupExtraChipFilter.
+function setupFilters(chipsEl, gridEl, allSeries, groupKey, staleDays, todasSeries, extraChipsEl){
   const groups = ['Todos', ...new Set(allSeries.map(s => s[groupKey]).filter(Boolean))];
   chipsEl.innerHTML = '';
   groups.forEach((g, i) => {
     chipsEl.appendChild(makeChip(g, i === 0, () => {
       [...chipsEl.children].forEach(c => c.classList.remove('active'));
       chipsEl.children[i].classList.add('active');
-      const filtered = g === 'Todos' ? allSeries : allSeries.filter(s => s[groupKey] === g);
-      renderGrid(gridEl, filtered, staleDays);
+      if (g === 'Todos') {
+        renderGrid(gridEl, allSeries, staleDays);
+        return;
+      }
+      if (todasSeries && extraChipsEl) {
+        [...extraChipsEl.children].forEach((c, j) => c.classList.toggle('active', j === 0));
+        renderGrid(gridEl, todasSeries.filter(s => s[groupKey] === g), staleDays);
+      } else {
+        renderGrid(gridEl, allSeries.filter(s => s[groupKey] === g), staleDays);
+      }
     }));
   });
   renderGrid(gridEl, allSeries, staleDays);
@@ -518,7 +531,7 @@ const TIER_LABELS = {
 };
 
 
-function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays){
+function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleDays, todasSeries, extraChipsEl){
   const tiers = ['Todos', ...new Set(allSeries.map(s => s.tier).filter(Boolean))];
   tierChipsEl.innerHTML = '';
 
@@ -528,11 +541,11 @@ function setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, allSeries, staleD
       [...tierChipsEl.children].forEach(c => c.classList.remove('active'));
       tierChipsEl.children[i].classList.add('active');
       const byTier = t === 'Todos' ? allSeries : allSeries.filter(s => s.tier === t);
-      setupFilters(groupChipsEl, gridEl, byTier, 'group', staleDays);
+      setupFilters(groupChipsEl, gridEl, byTier, 'group', staleDays, todasSeries, extraChipsEl);
     }));
   });
 
-  setupFilters(groupChipsEl, gridEl, allSeries, 'group', staleDays);
+  setupFilters(groupChipsEl, gridEl, allSeries, 'group', staleDays, todasSeries, extraChipsEl);
 }
 
 // Filtro extra genérico de "tipo de série" (um campo extra além de
@@ -548,7 +561,7 @@ function setupExtraChipFilter(campo, preferido, chipsEl, tierChipsEl, groupChips
       [...chipsEl.children].forEach(c => c.classList.remove('active'));
       chipsEl.children[i].classList.add('active');
       const filtrado = v === 'Todas' ? allSeries : allSeries.filter(s => s[campo] === v);
-      setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtrado, staleDays);
+      setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtrado, staleDays, allSeries, chipsEl);
     }));
   });
   const inicial = valores.includes(preferido) ? preferido : 'Todas';
@@ -556,7 +569,7 @@ function setupExtraChipFilter(campo, preferido, chipsEl, tierChipsEl, groupChips
   [...chipsEl.children].forEach(c => c.classList.remove('active'));
   const idxInicial = valores.indexOf(inicial);
   if (chipsEl.children[idxInicial]) chipsEl.children[idxInicial].classList.add('active');
-  setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtradoInicial, staleDays);
+  setupTieredFilters(tierChipsEl, groupChipsEl, gridEl, filtradoInicial, staleDays, allSeries, chipsEl);
 }
 
 function render(data){
