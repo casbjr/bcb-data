@@ -178,6 +178,17 @@ def _normalizar_cnpj(val) -> str:
 
 TOP_N_RECLAMACOES = 15
 
+# O primeiro run real (20/jul) mostrou o Top 15 dominado por instituições
+# minúsculas ("MT IP", "Parati CFI"...) com índice na casa de centenas de
+# milhares - o índice é reclamações por milhão de CLIENTES, então uma base
+# de clientes pequena infla o número mesmo com pouquíssimas reclamações em
+# termos absolutos. A página pública do Bacen (comparada manualmente) só
+# mostra instituições grandes - o menor "Clientes" visto no Top 15 de lá
+# foi ~18 milhões - então aplicamos um piso bem mais conservador aqui como
+# proxy até confirmar o critério oficial (a nota de rodapé da página do
+# Bacen provavelmente documenta o método exato de cálculo/corte).
+LIMIAR_CLIENTES_RANKING = 1_000_000
+
 
 def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
     """Monta o Top N (por padrão 15, como a página pública do Bacen) do
@@ -191,6 +202,10 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
     col_instituicao = next((c for c in df.columns if "institui" in c.lower()), None)
     col_indice = next((c for c in df.columns if "indice" in c.lower() or "índice" in c.lower()), None)
     col_cnpj = next((c for c in df.columns if "cnpj" in c.lower()), None)
+    col_clientes = next(
+        (c for c in df.columns if "cliente" in c.lower() and "total" in c.lower()),
+        None
+    )
     if col_instituicao is None or col_indice is None:
         print(f"[aviso] colunas não identificadas no ranking - colunas: {list(df.columns)}")
         return [], []
@@ -201,6 +216,26 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
     ultimo_periodo = max(periodos_ok) if periodos_ok else None
 
     df = df.copy()
+
+    if col_clientes:
+        valor_clientes = pd.to_numeric(
+            df[col_clientes].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
+            errors="coerce"
+        )
+        eh_banco_alvo = df[col_instituicao].apply(lambda n: bool(identificar_bancos_alvo(n)))
+        # Nunca descarta um banco-alvo por esse filtro - sempre queremos o
+        # dado real deles, mesmo que a base de clientes seja pequena.
+        mantido = (valor_clientes >= LIMIAR_CLIENTES_RANKING) | eh_banco_alvo
+        descartadas = df[~mantido]
+        if not descartadas.empty:
+            amostra = sorted(descartadas[col_instituicao].unique())[:15]
+            print(f"[aviso] {len(descartadas)} linha(s) descartada(s) do Top {top_n} por terem menos "
+                  f"de {LIMIAR_CLIENTES_RANKING:,} clientes (índice fica estatisticamente instável com "
+                  f"base pequena) - amostra: {amostra}")
+        df = df[mantido].copy()
+    else:
+        print("[aviso] coluna de quantidade de clientes não encontrada - Top N calculado sem filtro "
+              "de porte, pode incluir instituições pequenas com índice inflado.")
 
     # Converte strings BR para float americano; valores que não derem pra
     # converter são DESCARTADOS (não viram 0 - um índice de reclamações "0"

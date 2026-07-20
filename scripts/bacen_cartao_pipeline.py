@@ -259,7 +259,10 @@ def _descobrir_relatorio_cartao(anomes: int, tipo_inst: int,
             continue
 
         colunas = sorted({r.get("NomeColuna") for r in registros if r.get("NomeColuna")})
-        bate = [c for c in colunas if c and "cart" in c.lower()]
+        # "cart" sozinho também bate em "Carteira" (carteira de crédito no
+        # agregado, não o produto cartão) - precisa da palavra completa
+        # "cartão"/"cartao" pra não gerar falso-positivo.
+        bate = [c for c in colunas if c and ("cartão" in c.lower() or "cartao" in c.lower())]
         if bate:
             print(f"[descoberta] *** Relatorio '{codigo}' TEM coluna de cartão: {bate} "
                   f"(colunas completas: {colunas}) ***")
@@ -344,11 +347,13 @@ def get_ifdata_cartao(anomes_list: list[int]) -> pd.DataFrame:
     if not mask_cartao.any():
         colunas_disponiveis = sorted(df["NomeColuna"].dropna().unique().tolist())
         print(f"[aviso] nenhuma coluna com 'Cartão'/'Cartao' encontrada no relatório. Colunas: {colunas_disponiveis}")
-        print("[aviso] rodando varredura de relatórios candidatos pra achar onde foi parar "
-              "a coluna de Cartão de Crédito (ver linhas '[descoberta]' abaixo)...")
+        print("[aviso] rodando varredura de relatórios candidatos (TipoInstituicao 1 e 2) pra achar "
+              "onde foi parar a coluna de Cartão de Crédito (ver linhas '[descoberta]' abaixo) - a "
+              "suposição 'pós 03/2025 = só TipoInstituicao=1' pode estar errada pra esse relatório "
+              "específico, então varre os dois pra não descartar a hipótese à toa...")
         for anomes in anomes_list:
-            tipo_inst = 1 if anomes >= 202503 else 2
-            _descobrir_relatorio_cartao(anomes, tipo_inst)
+            for tipo_inst_scan in (1, 2):
+                _descobrir_relatorio_cartao(anomes, tipo_inst_scan)
         return pd.DataFrame()
         
     return df[mask_cartao]
