@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-07-20T12:07:23.121963+00:00",
+  "updated_at": "2026-07-20T12:30:47.796837+00:00",
   "sgs": [
     {
       "key": "inadimplencia_total_sfn",
@@ -1262,7 +1262,138 @@
       ]
     }
   ],
-  "ifdata": [],
+  "ifdata": [
+    {
+      "key": "banco_votorantim_s.a.",
+      "label": "BANCO VOTORANTIM S.A. · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "BANCO VOTORANTIM S.A.",
+      "tier": "concorrente",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        5.28
+      ]
+    },
+    {
+      "key": "bradesco_administradora_de_consórcios_ltda.",
+      "label": "BRADESCO ADMINISTRADORA DE CONSÓRCIOS LTDA. · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "BRADESCO ADMINISTRADORA DE CONSÓRCIOS LTDA.",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        78.69
+      ]
+    },
+    {
+      "key": "btg_pactual_serviços_financeiros_s.a._distribuidora_de_títulos_e_valores_mobiliários",
+      "label": "BTG PACTUAL SERVIÇOS FINANCEIROS S.A. DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "BTG PACTUAL SERVIÇOS FINANCEIROS S.A. DISTRIBUIDORA DE TÍTULOS E VALORES MOBILIÁRIOS",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        8.01
+      ]
+    },
+    {
+      "key": "c6_bank",
+      "label": "C6 BANK · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "C6 BANK",
+      "tier": "concorrente",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        12.19
+      ]
+    },
+    {
+      "key": "cooperativa_de_economia_e_crédito_mútuo_dos_funcionários_das_empresas_itaú",
+      "label": "COOPERATIVA DE ECONOMIA E CRÉDITO MÚTUO DOS FUNCIONÁRIOS DAS EMPRESAS ITAÚ · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "COOPERATIVA DE ECONOMIA E CRÉDITO MÚTUO DOS FUNCIONÁRIOS DAS EMPRESAS ITAÚ",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "key": "inter_pag_instituição_de_pagamento_s.a.",
+      "label": "INTER PAG INSTITUIÇÃO DE PAGAMENTO S.A. · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "INTER PAG INSTITUIÇÃO DE PAGAMENTO S.A.",
+      "tier": "concorrente",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        14.72
+      ]
+    },
+    {
+      "key": "itaú_unibanco_veículos_administradora_de_consórcios_ltda.",
+      "label": "ITAÚ UNIBANCO VEÍCULOS ADMINISTRADORA DE CONSÓRCIOS LTDA. · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "ITAÚ UNIBANCO VEÍCULOS ADMINISTRADORA DE CONSÓRCIOS LTDA.",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        151.11
+      ]
+    },
+    {
+      "key": "nu_pagamentos_s.a._-_instituição_de_pagamento",
+      "label": "NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        115.96
+      ]
+    },
+    {
+      "key": "porto_seguro_administradora_de_consórcios_ltda",
+      "label": "PORTO SEGURO ADMINISTRADORA DE CONSÓRCIOS LTDA · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "PORTO SEGURO ADMINISTRADORA DE CONSÓRCIOS LTDA",
+      "tier": "concorrente",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        19.68
+      ]
+    },
+    {
+      "key": "santander_brasil_administradora_de_consórcio_ltda.",
+      "label": "SANTANDER BRASIL ADMINISTRADORA DE CONSÓRCIO LTDA. · carteira cartão PF",
+      "unit": "R$ bi",
+      "group": "SANTANDER BRASIL ADMINISTRADORA DE CONSÓRCIO LTDA.",
+      "tier": "benchmark",
+      "dates": [
+        "202603"
+      ],
+      "values": [
+        63.42
+      ]
+    }
+  ],
   "reclamacoes": [
     {
       "key": "facta_s_a_cfi_conglomerado",
