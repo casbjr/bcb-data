@@ -192,27 +192,27 @@ def _normalizar_cnpj(val) -> str:
 
 TOP_N_RECLAMACOES = 15
 
-# O primeiro run real (20/jul) mostrou o Top 15 dominado por instituições
-# minúsculas ("MT IP", "Parati CFI"...) com índice na casa de centenas de
-# milhares - o índice é reclamações por milhão de CLIENTES, então uma base
-# de clientes pequena infla o número mesmo com pouquíssimas reclamações em
-# termos absolutos. Um piso de 1 milhão (primeira tentativa) ainda deixou
-# passar bancos médios reais (BRB, Safra, Pine, Sofisa, Facta, Mercantil do
-# Brasil...) com índice de centenas de pontos - claramente ainda base
-# pequena demais pra comparação justa com bancões. A página pública do
-# Bacen (comparada manualmente) só mostra instituições grandes - o menor
-# "Clientes" visto no Top 15 de lá foi ~18 milhões - subimos o piso pra 10
-# milhões como estimativa mais conservadora. Ainda é uma aproximação, não o
-# critério oficial confirmado (ver diagnóstico de clientes do Top N logado
-# abaixo pra calibrar melhor se ainda não bater).
-LIMIAR_CLIENTES_RANKING = 10_000_000
+# Critério oficial do Bacen (Nota Técnica do Ranking de Reclamações, seção
+# 4): o Ranking contra bancos/financeiras/instituições de pagamento é
+# dividido em duas listagens:
+#   - "Top 15": as QUINZE INSTITUIÇÕES COM MAIS CLIENTES (não as piores
+#     por índice!), ordenadas de forma decrescente por índice.
+#   - "Demais": as outras instituições com 30 ou mais reclamações
+#     REGULADAS PROCEDENTES no trimestre, também ordenadas por índice
+#     decrescente. Quem tem menos de 30 procedentes fica de fora de
+#     qualquer ranking (só listada em ordem alfabética à parte).
+# Isso explica por que a primeira tentativa (piso de clientes sobre o
+# índice) nunca batia com a página pública: o critério de entrada no Top
+# 15 não tem nada a ver com o índice em si, é puramente porte (número de
+# clientes) - só a ORDEM dentro de cada listagem usa o índice.
+LIMIAR_PROCEDENTES_DEMAIS = 30
 
 
 def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
-    """Monta o Top N (por padrão 15, como a página pública do Bacen) do
-    Ranking de Reclamações, calculado sobre TODAS as instituições da
-    categoria pesquisada (não só os bancos-alvo) - mais a Porto sempre
-    incluída, com a posição real dela, mesmo se ficar fora do Top N."""
+    """Monta o Ranking de Reclamações seguindo a metodologia oficial do
+    Bacen: Top N = instituições com mais clientes (ordenadas por índice);
+    Porto sempre incluída - com a posição real dela na listagem "Demais"
+    quando não estiver entre as N maiores."""
     df = get_ranking_reclamacoes_cartao(periodos)
     if df.empty:
         return [], []
@@ -222,6 +222,10 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
     col_cnpj = next((c for c in df.columns if "cnpj" in c.lower()), None)
     col_clientes = next(
         (c for c in df.columns if "cliente" in c.lower() and "total" in c.lower()),
+        None
+    )
+    col_procedentes = next(
+        (c for c in df.columns if "procedentes extrapoladas" in c.lower()),
         None
     )
     if col_instituicao is None or col_indice is None:
@@ -235,31 +239,29 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
 
     df = df.copy()
 
-    # Importante: NÃO descarta linhas por porte de cliente aqui - isso
-    # encolheria o universo usado pra calcular a POSIÇÃO (rank), inflando
-    # artificialmente a colocação de quem sobra (ex.: a Porto "subindo" pra
-    # #1 só porque os bancos médios acima dela no índice foram removidos
-    # antes do ranking, não porque ela realmente ocupa essa posição no
-    # universo completo). O porte só entra depois, como critério de
-    # ELEGIBILIDADE pro Top N exibido - o rank em si reflete o universo
-    # inteiro, mais perto de como a página do Bacen numera as posições.
-    if col_clientes:
-        df["valor_clientes"] = pd.to_numeric(
-            df[col_clientes].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
+    def _numero_br(serie):
+        return pd.to_numeric(
+            serie.astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
             errors="coerce"
         )
+
+    if col_clientes:
+        df["valor_clientes"] = _numero_br(df[col_clientes])
     else:
-        print("[aviso] coluna de quantidade de clientes não encontrada - Top N calculado sem filtro "
-              "de porte, pode incluir instituições pequenas com índice inflado.")
+        print("[aviso] coluna de quantidade de clientes não encontrada - não dá pra aplicar o "
+              "critério oficial do Top 15 (maior número de clientes).")
+
+    if col_procedentes:
+        df["valor_procedentes"] = _numero_br(df[col_procedentes])
+    else:
+        print("[aviso] coluna de reclamações procedentes extrapoladas não encontrada - não dá pra "
+              "aplicar o piso oficial de 30 procedentes da listagem \"Demais\".")
 
     # Converte strings BR para float americano; valores que não derem pra
     # converter são DESCARTADOS (não viram 0 - um índice de reclamações "0"
     # entraria no ranking como o melhor resultado possível, o que seria
     # enganoso se na verdade é só um erro de parsing).
-    df["valor_num"] = pd.to_numeric(
-        df[col_indice].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False),
-        errors="coerce"
-    )
+    df["valor_num"] = _numero_br(df[col_indice])
     invalidos = df[df["valor_num"].isna()]
     if not invalidos.empty:
         print(f"[aviso] {len(invalidos)} valor(es) de índice não-numérico descartado(s): "
@@ -303,10 +305,11 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
         linha_atual = grupo[(grupo["Ano"] == ultimo_periodo[0]) & (grupo["Periodo"] == ultimo_periodo[1])] \
             if ultimo_periodo else grupo.iloc[0:0]
 
-        clientes_atual = None
-        if not linha_atual.empty and "valor_clientes" in linha_atual.columns:
-            v = linha_atual["valor_clientes"].iloc[0]
-            clientes_atual = float(v) if pd.notna(v) else None
+        def _valor_atual(coluna):
+            if linha_atual.empty or coluna not in linha_atual.columns:
+                return None
+            v = linha_atual[coluna].iloc[0]
+            return float(v) if pd.notna(v) else None
 
         grupos[chave_grupo] = {
             "key": "+".join(bancos_alvo_aqui) if bancos_alvo_aqui else _slug(label),
@@ -317,42 +320,56 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
             "dates": [f"{p}Q{str(a)[2:]}" for a, p in zip(grupo["Ano"], grupo["Periodo"])],
             "values": [round(float(v), 2) for v in grupo["valor_num"]],
             "_bancos_alvo": bancos_alvo_aqui,
-            "_valor_periodo_atual": float(linha_atual["valor_num"].iloc[0]) if not linha_atual.empty else None,
-            "_clientes_periodo_atual": clientes_atual,
+            "_valor_periodo_atual": _valor_atual("valor_num"),
+            "_clientes_periodo_atual": _valor_atual("valor_clientes"),
+            "_procedentes_periodo_atual": _valor_atual("valor_procedentes"),
         }
 
-    # Posição "oficial": só entram instituições com dado no período mais
-    # recente (mesma base de comparação que a página do Bacen usa pra
-    # calcular a "Posição" do trimestre atual) - do pior (maior) índice
-    # pro melhor (menor). O rank é calculado sobre o universo INTEIRO
-    # (inclusive quem tem base de clientes pequena) - o piso de clientes só
-    # decide quem é ELEGÍVEL pra aparecer no Top N exibido, não afeta a
-    # posição numérica de ninguém.
-    rankeaveis = [b for b in grupos.values() if b["_valor_periodo_atual"] is not None]
-    rankeaveis.sort(key=lambda b: b["_valor_periodo_atual"], reverse=True)
-    for i, b in enumerate(rankeaveis, start=1):
+    # Só entram instituições com dado no período mais recente (mesma base
+    # de comparação que a página do Bacen usa pra calcular a "Posição" do
+    # trimestre atual).
+    candidatos = [b for b in grupos.values() if b["_valor_periodo_atual"] is not None]
+
+    # Bucket 1 (oficial, seção 4 da Nota Técnica): "Top N" = as N
+    # instituições com MAIS CLIENTES (não as piores por índice!),
+    # ordenadas de forma decrescente por índice dentro desse grupo. Se não
+    # tivermos dado de clientes pra ninguém (coluna ausente), cai pro
+    # critério antigo (pior índice) em vez de devolver uma lista vazia.
+    com_clientes = sorted(
+        (b for b in candidatos if b["_clientes_periodo_atual"] is not None),
+        key=lambda b: b["_clientes_periodo_atual"], reverse=True
+    )
+    if com_clientes:
+        top = com_clientes[:top_n]
+    else:
+        top = sorted(candidatos, key=lambda b: b["_valor_periodo_atual"], reverse=True)[:top_n]
+    top.sort(key=lambda b: b["_valor_periodo_atual"], reverse=True)
+    for i, b in enumerate(top, start=1):
         b["rank"] = i
 
-    def _elegivel(b: dict) -> bool:
-        if b["_bancos_alvo"]:
-            return True
-        clientes = b["_clientes_periodo_atual"]
-        return clientes is not None and clientes >= LIMIAR_CLIENTES_RANKING
-
-    descartados = [b for b in rankeaveis if not _elegivel(b)]
-    if descartados:
-        amostra = [b["group"] for b in descartados[:15]]
-        print(f"[aviso] {len(descartados)} instituição(ões) fora do Top {top_n} exibido por terem menos "
-              f"de {LIMIAR_CLIENTES_RANKING:,} clientes (índice fica estatisticamente instável com base "
-              f"pequena) - a posição (rank) delas ainda conta pro universo, só não aparecem no card. "
-              f"Amostra: {amostra}")
-
-    top = [b for b in rankeaveis if _elegivel(b)][:top_n]
+    # Bucket 2 (oficial): "Demais" = instituições fora do Top N com 30+
+    # reclamações reguladas procedentes no trimestre, também ordenadas por
+    # índice decrescente. Só usamos isso pra achar a posição real da Porto
+    # quando ela não estiver entre as N maiores - não exibimos a listagem
+    # "Demais" inteira (seria enorme).
+    demais = sorted(
+        (b for b in candidatos if b not in top and (b["_procedentes_periodo_atual"] or 0) >= LIMIAR_PROCEDENTES_DEMAIS),
+        key=lambda b: b["_valor_periodo_atual"], reverse=True
+    )
+    for i, b in enumerate(demais, start=1):
+        b["rank"] = top_n + i
 
     # A Porto sempre aparece, mesmo fora do Top N, com a posição real dela.
-    porto = next((b for b in rankeaveis if "porto" in b["_bancos_alvo"]), None)
+    porto = next((b for b in candidatos if "porto" in b["_bancos_alvo"]), None)
     if porto is not None:
         porto["destaque"] = True
+        if "rank" not in porto:
+            # Não entrou nem no Top N nem nos "Demais" (provavelmente
+            # menos de 30 procedentes no trimestre) - mesmo assim
+            # mostramos, com a posição calculada contra o universo inteiro
+            # por índice, só pra não sumir do painel.
+            universo = sorted(candidatos, key=lambda b: b["_valor_periodo_atual"], reverse=True)
+            porto["rank"] = universo.index(porto) + 1
         if porto not in top:
             top = top + [porto]
 
@@ -363,11 +380,7 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
               f"com os termos em BANCOS_ALVO (rode listar_instituicoes_alvo() ou inspecione "
               f"df[col_instituicao].unique() pra achar o nome certo).")
 
-    # Diagnóstico pra calibrar LIMIAR_CLIENTES_RANKING: mostra a base de
-    # clientes de quem entrou no Top N, pra comparar com a página pública
-    # do Bacen (o menor "Clientes" visto lá até agora foi ~18 milhões) e
-    # ajustar o piso com precisão se ainda aparecer banco pequeno demais.
-    print(f"[diagnóstico] Top {top_n} com clientes da base mais recente (LIMIAR_CLIENTES_RANKING={LIMIAR_CLIENTES_RANKING:,}):")
+    print(f"[sucesso] Top {top_n} (oficial: mais clientes, ordenado por índice):")
     for b in top:
         clientes_fmt = f"{b['_clientes_periodo_atual']:,.0f}" if b["_clientes_periodo_atual"] is not None else "?"
         print(f"  #{b.get('rank')} {b['group']} - índice={b['values'][-1] if b['values'] else '?'} - clientes={clientes_fmt}")
@@ -376,6 +389,7 @@ def build_reclamacoes_block(periodos, top_n: int = TOP_N_RECLAMACOES):
         del b["_bancos_alvo"]
         del b["_valor_periodo_atual"]
         del b["_clientes_periodo_atual"]
+        del b["_procedentes_periodo_atual"]
 
     return top, periodos_ok
 
